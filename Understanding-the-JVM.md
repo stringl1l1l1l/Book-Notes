@@ -6,7 +6,7 @@
 ## 二、Class文件结构  
 ```
 ClassFile {
-    u4             magic;                                //魔数，Class文件标志，一般为0xCAFEBAB
+    u4             magic;                                //魔数，Class文件标志，一般为0xCAFEBABE
     u2             minor_version;                        //JDK次版本号
     u2             major_version;                        //JDK主版本号
     u2             constant_pool_count;                  //常量的数量
@@ -25,9 +25,9 @@ ClassFile {
 }
 // 注：因为一个属性不足以描述一个方法，因此一个方法表就对应一个方法，其他同理
 ```  
-### JVM规范预定义的属性  
+#### JVM规范预定义的属性  
 ![图2.1 JVM规范预定义的属性](/images/JVM_2-1.jpg)  
-- Code属性表  
+#### Code属性表  
 Code属性是Class文件最重要的属性，存储了编译生成的字节码指令。   
 ![图2.2 Code属性表结构](/images/JVM_2-2.jpg)  
 *tips：注意区分异常表（exception_info）和异常属性（Exceptions）。前者是用于实现try-catch-finally语句的异常处理，后者用于描述throws关键字后列举的可能出现的异常。*  
