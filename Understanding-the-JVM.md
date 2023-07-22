@@ -30,4 +30,19 @@ ClassFile {
 #### Code属性表  
 Code属性是Class文件最重要的属性，存储了编译生成的字节码指令。   
 ![图2.2 Code属性表结构](/images/JVM_2-2.jpg)  
-*tips：注意区分异常表（exception_info）和异常属性（Exceptions）。前者是用于实现try-catch-finally语句的异常处理，后者用于描述throws关键字后列举的可能出现的异常。*  
+*tips：注意区分异常表（exception_info）和异常属性（Exceptions）。前者是用于实现try-catch-finally语句的异常处理，后者用于描述throws关键字后列举的可能出现的异常。*   
+
+## 三、JVM类加载机制  
+类加载：JVM将Class文件载入内存，并对数据进行校验、解析、初始化，最终形成可被JVM直接使用的Java类型。  
+![图3.1 Java类的生命周期](/images/JVM_3-1.jpg)  
+- **加载**  
+1）通过类的全限定名获取定义此类的二进制字节流  
+2）将字节流的静态数据转为方法区的运行时数据  
+3）在方法区中生成该类的java.lang.Class对象，作为访问该类的入口  
+- **初始化**  
+进行初始化的唯5种场景：  
+1）遇到new、getstatic、putstatic、invokestatic字节码指令时  
+2）使用java.lang.reflect包的方法进行反射调用时  
+3）当初始化一个类时，若父类没有初始化，则先初始化父类  
+4）JVM启动时，初始化包含main方法的主类  
+5）使用JDK1.7动态语言支持时...  
