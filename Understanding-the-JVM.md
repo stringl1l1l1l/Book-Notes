@@ -39,7 +39,60 @@ Code属性是Class文件最重要的属性，存储了编译生成的字节码�
 1）通过类的全限定名获取定义此类的二进制字节流  
 2）将字节流的静态数据转为方法区的运行时数据  
 3）在方法区中生成该类的java.lang.Class对象，作为访问该类的入口  
+*tips：此阶段通过类加载器完成，用户可以自定义类加载器，灵活地加载字节流文件。*
+- **验证**  
+1. 文件格式验证
+验证字节流是否符合Class文件的规范。
+- 是否以魔数0xCAFEBABE开头
+- 主、次版本号是否在虚拟机处理范围内
+- 各种类型检查
+- utf8编码检查
+......
+2. 元数据验证
+对字节码描述的信息进行语义分析，确保符合Java语言规范。
+- 是否有父类
+- 父类是否继承了不允许继承的final类
+- 是否实现所有要求实现的方法
+- 类中的字段、方法是否与父类矛盾  
+......
+3. 字节码验证
+通过数据流和控制流分析，确定程序语义的合法性。
+
+4. 符号引用验证  
+
+*tips： 验证阶段是可以跳过的。*
+
+- **准备**  
+正式为类变量（static）在方法区分配内存并设置类变量初始值（零值）的阶段。
+```
+public static int val = 123;        // 准备阶段val为0
+public static int final val = 123;  // 准备阶段val为123
+```
+
+- **解析**  
+JVM将常量池中的符号引用替换为直接引用的阶段。
+*tips：符号引用相当于间接访问，直接引用相当于直接访问。*
+
 - **初始化**  
+初始化阶段是执行类构造器\<cinit\>()方法的过程，此时才真正开始执行类中定义的Java代码。
+\<cinit\>()方法包含static块中的所有语句和所有类变量的赋值操作，执行顺序与代码顺序一致。虚拟机会确保父类的\<cinit\>()方法先调用（接口例外）。
+```
+static class Parent {
+    public static int A = 1;
+    static {
+        A = 2;    
+    }
+}
+
+static class Sub extends Parent {
+    public static int B = A;
+}
+
+public static void main(String[] args) {
+    System.out.println(Sub.B); // 由于先执行父类<cinit>方法，输出为2，而不是1
+}
+```
+
 进行初始化的唯5种场景：  
 1）遇到new、getstatic、putstatic、invokestatic字节码指令时  
 2）使用java.lang.reflect包的方法进行反射调用时  

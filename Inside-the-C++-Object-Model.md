@@ -106,6 +106,7 @@ float Point3d::magnitude(Point3d *const this)
 // const member function
 float Point3d::magnitude(const Point3d *const this)
 ```
+*tips：const出现在星号左边，表示指针被指物是常量；如果出现在星号右边，表示指针自身是常量。————《Effective C++》*  
 2）将对non-static成员变量的存取操作改为使用形参this指针操作
 ```
 float Point3d::magnitude(const Point3d *const this)
@@ -117,9 +118,9 @@ float Point3d::magnitude(const Point3d *const this)
     );
 }
 ```
-3）将该函数写成外部函数；为确保函数符号唯一性，进行name mangling处理
+3）将该函数写成外部函数；为确保函数符号唯一性，进行**name mangling**处理
 ```
-extern float magnitude__7Point3dFv(register Point3d *const this);
+extern float magnitude__7Point3dFv(const Point3d *const this);
 ```
 4）修改所有调用操作
 ```
