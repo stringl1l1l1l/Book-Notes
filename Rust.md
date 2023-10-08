@@ -4,7 +4,7 @@
 ```
 cargo new <project name>  
 ```
-该命令生成的项目目录结构： 
+该命令生成的项目目录结构：  
 src 源代码目录  
 Cargo.toml 记录项目包依赖  
 .gitignore  
@@ -14,7 +14,7 @@ Cargo.toml 记录项目包依赖
 cargo build             // debug模式
 cargo build −−release   // release模式，速度更快
 ```
-该命令额外生成的文件和目录： 
+该命令额外生成的文件和目录：  
 target  目标文件目录  
 Cargo.lock 记录依赖包版本，确保可重现构建  
 
