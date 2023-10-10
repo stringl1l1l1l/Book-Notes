@@ -388,4 +388,47 @@ Rust 不关心函数定义所在的位置，只要函数被调用时出现在调
   LIFTOFF!!!
   ```
   
-  
+- ***注：Range类型***
+
+1. **Range（..）左闭右开**
+
+   ```rust
+   fn main() {
+       for i in 1..5 {
+           println!("{}", i); // 输出1, 2, 3, 4
+       }
+   }
+   ```
+
+2. **RangeInclusive（..=）左闭右闭**
+
+   ```rust
+   fn main() {
+       for i in 1..=5 {
+           println!("{}", i); // 输出1, 2, 3, 4, 5
+       }
+   }
+   ```
+
+3. **RangeTo（..end）0到某个结束值（不包括）**
+
+   ```rust
+   fn main() {
+       for i in ..5 {
+           println!("{}", i); // 输出0, 1, 2, 3, 4
+       }
+   }
+   ```
+
+4. **RangeToInclusive（..=end））0到某个结束值（包括）**
+
+   ```rust
+   fn main() {
+       for i in ..=5 {
+           println!("{}", i); // 输出0, 1, 2, 3, 4, 5
+       }
+   }
+   ```
+
+   
+
