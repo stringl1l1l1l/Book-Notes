@@ -1138,3 +1138,347 @@ impl Rectangle {
 关键字 `Self` 在函数的返回类型中代指在 `impl` 关键字后出现的类型，在这里是 `Rectangle`
 
 使用结构体名和 `::` 语法来调用这个关联函数：比如 `let sq = Rectangle::square(3);`。这个函数位于结构体的命名空间中：`::` 语法用于关联函数和模块创建的命名空间。
+
+### 枚举
+
+#### enum枚举
+
+可以通过在代码中定义一个 `IpAddrKind` 枚举来表现这个概念并列出可能的 IP 地址类型，`V4` 和 `V6`。这被称为枚举的 **成员**（*variants*）：
+
+```rust
+enum IpAddrKind {
+    V4,
+    V6,
+}
+```
+
+现在 `IpAddrKind` 就是一个可以在代码中使用的自定义数据类型了。
+
+可以像这样创建 `IpAddrKind` 两个不同成员的实例：
+
+```rust
+    let four = IpAddrKind::V4;
+    let six = IpAddrKind::V6;
+```
+
+我们还可以直接将数据附加到枚举的每个成员上，这样就不需要一个额外的结构体了。这里也很容易看出枚举工作的另一个细节：每一个我们定义的枚举成员的名字也变成了一个构建枚举的实例的函数。也就是说，`IpAddr::V4()` 是一个获取 `String` 参数并返回 `IpAddr` 类型实例的函数调用。作为定义枚举的结果，这些构造函数会自动被定义。
+
+`IpAddr` 枚举的新定义表明了 `V4` 和 `V6` 成员都关联了 `String` 值：
+
+```rust
+    enum IpAddr {
+        V4(String),
+        V6(String),
+    }
+
+    let home = IpAddr::V4(String::from("127.0.0.1"));
+
+    let loopback = IpAddr::V6(String::from("::1"));
+```
+
+用枚举替代结构体还有另一个优势：每个成员可以处理不同类型和数量的数据。IPv4 版本的 IP 地址总是含有四个值在 0 和 255 之间的数字部分。如果我们想要将 `V4` 地址存储为四个 `u8` 值而 `V6` 地址仍然表现为一个 `String`，这就不能使用结构体了。枚举则可以轻易的处理这个情况：
+
+```rust
+    enum IpAddr {
+        V4(u8, u8, u8, u8),
+        V6(String),
+    }
+
+    let home = IpAddr::V4(127, 0, 0, 1);
+
+    let loopback = IpAddr::V6(String::from("::1"));
+```
+
+我们可以将任意类型的数据放入枚举成员中：例如字符串、数字类型或者结构体。甚至可以包含另一个枚举！
+
+```rust
+enum Message {
+    Quit,
+    Move { x: i32, y: i32 },
+    Write(String),
+    ChangeColor(i32, i32, i32),
+}
+```
+
+结构体和枚举还有另一个相似点：就像可以使用 `impl` 来为结构体定义方法那样，也可以在枚举上定义方法。这是一个定义于我们 `Message` 枚举上的叫做 `call` 的方法：
+
+```rust
+enum Message {
+    Quit,
+    Move { x: i32, y: i32 },
+    Write(String),
+    ChangeColor(i32, i32, i32),
+}    
+
+impl Message {
+    fn call(&self) {
+       // 在这里定义方法体
+    }
+}
+
+let m = Message::Write(String::from("hello"));
+m.call();
+```
+
+方法体使用了 `self` 来获取调用方法的值。这个例子中，创建了一个值为 `Message::Write(String::from("hello"))` 的变量 `m`，而且这就是当 `m.call()` 运行时 `call` 方法中的 `self` 的值。
+
+#### Option枚举🧐
+
+`Option` 是标准库定义的另一个枚举。`Option` 类型应用广泛因为它编码了一个非常普遍的场景，即一个值要么有值要么没值。
+
+🧐**Rust 并没有很多其他语言中有的空值功能**。**空值**（*Null* ）是一个值，它代表没有值。在有空值的语言中，变量总是这两种状态之一：空值和非空值。Rust 没有空值，不过它确实拥有一个可以编码存在或不存在概念的枚举。这个枚举是 `Option<T>`，而且它[定义于标准库中](https://doc.rust-lang.org/std/option/enum.Option.html)，如下：
+
+```rust
+enum Option<T> {
+    None,
+    Some(T),
+}
+```
+
+`Option<T>` 枚举是如此有用以至于它甚至被包含在了 prelude 之中，你不需要将其显式引入作用域。另外，它的成员也是如此，可以不需要 `Option::` 前缀来直接使用 `Some` 和 `None`。即便如此 `Option<T>` 也仍是常规的枚举，`Some(T)` 和 `None` 仍是 `Option<T>` 的成员。
+
+`Option` 值的例子：
+
+```rust
+    let some_number = Some(5);
+    let some_char = Some('e');
+
+    let absent_number: Option<i32> = None;
+```
+
+对于 `absent_number`，Rust 需要我们指定 `Option` 整体的类型，因为编译器只通过 `None` 值无法推断出 `Some` 成员保存的值的类型。
+
+如果运行下面的代码，将得到错误信息：
+
+```rust
+    let x: i8 = 5;
+    let y: Option<i8> = Some(5);
+
+    let sum = x + y;
+```
+
+```console
+$ cargo run
+   Compiling enums v0.1.0 (file:///projects/enums)
+error[E0277]: cannot add `Option<i8>` to `i8`
+ --> src/main.rs:5:17
+  |
+5 |     let sum = x + y;
+  |                 ^ no implementation for `i8 + Option<i8>`
+  |
+  = help: the trait `Add<Option<i8>>` is not implemented for `i8`
+  = help: the following other types implement trait `Add<Rhs>`:
+            <&'a f32 as Add<f32>>
+            <&'a f64 as Add<f64>>
+            <&'a i128 as Add<i128>>
+            <&'a i16 as Add<i16>>
+            <&'a i32 as Add<i32>>
+            <&'a i64 as Add<i64>>
+            <&'a i8 as Add<i8>>
+            <&'a isize as Add<isize>>
+          and 48 others
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `enums` due to previous error
+```
+
+错误信息意味着 Rust 不知道该如何将 `Option<i8>` 与 `i8` 相加，因为它们的类型不同。当在 Rust 中拥有一个像 `i8` 这样类型的值时，编译器确保它总是有一个有效的值。我们可以自信使用而无需做空值检查。**只有当使用 `Option<T>`的时候需要担心可能没有值**，而编译器会确保我们在使用值之前处理了为空的情况。换句话说，**在对 `Option<T>` 进行运算之前必须将其转换为 `T`**。通常这能帮助我们捕获到空值最常见的问题之一：假设某值不为空但实际上为空的情况。
+
+总的来说，为了使用 `Option<T>` 值，需要编写处理每个成员的代码。你想要一些代码只当拥有 `Some(T)` 值时运行，允许这些代码使用其中的 `T`。也希望一些代码只在值为 `None` 时运行，这些代码并没有一个可用的 `T` 值。`match` 表达式就是这么一个处理枚举的控制流结构：它会根据枚举的成员运行不同的代码，这些代码可以使用匹配到的值中的数据。
+
+#### match控制流🧐
+
+Rust 有一个叫做 `match` 的极为强大的控制流运算符，它允许我们将一个值与一系列的模式相比较，并根据相匹配的模式执行相应代码。模式可由字面值、变量、通配符和许多其他内容构成。
+
+我们编写一个函数来获取一个未知的硬币，并以一种类似验钞机的方式，确定它是何种硬币并返回它的美分值：
+
+```rust
+enum Coin {
+    Penny,
+    Nickel,
+    Dime,
+    Quarter,
+}
+
+fn value_in_cents(coin: Coin) -> u8 {
+    match coin {
+        Coin::Penny => 1,
+        Coin::Nickel => 5,
+        Coin::Dime => 10,
+        Coin::Quarter => 25,
+    }
+}
+```
+
+我们列出 `match` 关键字后跟一个表达式，在这个例子中是 `coin` 的值。这看起来非常像 `if` 所使用的条件表达式，不过这里有一个非常大的区别：**对于 `if`，表达式必须返回一个布尔值，而这里它可以是任何类型的**。
+
+当 `match` 表达式执行时，它将结果值按顺序与每一个分支的模式相比较。如果模式匹配了这个值，这个模式相关联的代码将被执行。如果模式并不匹配这个值，将继续执行下一个分支。
+
+如果分支代码较短的话通常不使用大括号，正如示例 6-3 中的每个分支都只是返回一个值。如果想要在分支中运行多行代码，可以使用大括号，而分支后的逗号是可选的。例如，如下代码在每次使用`Coin::Penny` 调用时都会打印出 “Lucky penny!”，同时仍然返回代码块最后的值，`1`：
+
+```rust
+fn value_in_cents(coin: Coin) -> u8 {
+    match coin {
+        Coin::Penny => {
+            println!("Lucky penny!");
+            1
+        }
+        Coin::Nickel => 5,
+        Coin::Dime => 10,
+        Coin::Quarter => 25,
+    }
+}
+```
+
+- **绑定值的模式**
+
+  匹配分支的另一个有用的功能是可以绑定匹配的模式的部分值。这也就是如何从枚举成员中提取值的。
+
+  作为一个例子，让我们修改枚举的一个成员来存放数据。1999 年到 2008 年间，美国在 25 美分的硬币的一侧为 50 个州的每一个都印刷了不同的设计。其他的硬币都没有这种区分州的设计，所以只有这些 25 美分硬币有特殊的价值。可以将这些信息加入我们的 `enum`，通过改变 `Quarter` 成员来包含一个 `State` 值，示例 6-4 中完成了这些修改：
+
+  ```rust
+  #[derive(Debug)] // 这样可以立刻看到州的名称
+  enum UsState {
+      Alabama,
+      Alaska,
+      // --snip--
+  }
+  
+  enum Coin {
+      Penny,
+      Nickel,
+      Dime,
+      Quarter(UsState),
+  }
+  ```
+
+  示例 6-4：`Quarter` 成员也存放了一个 `UsState` 值的 `Coin` 枚举
+
+  想象一下我们的一个朋友尝试收集所有 50 个州的 25 美分硬币。在根据硬币类型分类零钱的同时，也可以报告出每个 25 美分硬币所对应的州名称，这样如果我们的朋友没有的话，他可以将其加入收藏。
+
+  在这些代码的匹配表达式中，我们在匹配 `Coin::Quarter` 成员的分支的模式中增加了一个叫做 `state` 的变量。当匹配到 `Coin::Quarter` 时，变量 `state` 将会绑定 25 美分硬币所对应州的值。接着在那个分支的代码中使用 `state`，如下：
+
+  ```rust
+  fn value_in_cents(coin: Coin) -> u8 {
+      match coin {
+          Coin::Penny => 1,
+          Coin::Nickel => 5,
+          Coin::Dime => 10,
+          Coin::Quarter(state) => {
+              println!("State quarter from {:?}!", state);
+              25
+          }
+      }
+  }
+  ```
+
+  如果调用 `value_in_cents(Coin::Quarter(UsState::Alaska))`，`coin` 将是 `Coin::Quarter(UsState::Alaska)`。当将值与每个分支相比较时，没有分支会匹配，直到遇到 `Coin::Quarter(state)`。这时，`state` 绑定的将会是值 `UsState::Alaska`。接着就可以在 `println!` 表达式中使用这个绑定了，像这样就可以获取 `Coin` 枚举的 `Quarter` 成员中内部的州的值。
+
+- **匹配 `Option<T>`**
+
+```rust
+    fn plus_one(x: Option<i32>) -> Option<i32> {
+        match x {
+            None => None,
+            Some(i) => Some(i + 1),
+        }
+    }
+
+    let five = Some(5);         
+    let six = plus_one(five);	// Some(6)
+    let none = plus_one(None);  // None
+```
+
+- **匹配是穷尽的**
+
+  `match` 还有另一方面需要讨论：这些分支必须覆盖了所有的可能性。考虑一下 `plus_one` 函数的这个版本，它有一个 bug 并不能编译：
+
+```rust
+    fn plus_one(x: Option<i32>) -> Option<i32> {
+        match x {
+            Some(i) => Some(i + 1),
+        }
+    }
+```
+
+我们没有处理 `None` 的情况，所以这些代码会造成一个 bug。
+
+- **通配模式和 `_` 占位符**
+
+  让我们看一个例子，我们希望对一些特定的值采取特殊操作，而对其他的值采取默认操作。想象我们正在玩一个游戏，如果你掷出骰子的值为 3，角色不会移动，而是会得到一顶新奇的帽子。如果你掷出了 7，你的角色将失去新奇的帽子。对于其他的数值，你的角色会在棋盘上移动相应的格子。这是一个实现了上述逻辑的 `match`，骰子的结果是硬编码而不是一个随机值，其他的逻辑部分使用了没有函数体的函数来表示，实现它们超出了本例的范围：
+
+  ```rust
+      let dice_roll = 9;
+      match dice_roll {
+          3 => add_fancy_hat(),
+          7 => remove_fancy_hat(),
+          other => move_player(other),
+      }
+  
+      fn add_fancy_hat() {}
+      fn remove_fancy_hat() {}
+      fn move_player(num_spaces: u8) {}
+  ```
+
+  对于前两个分支，匹配模式是字面值 `3` 和 `7`，最后一个分支则涵盖了所有其他可能的值，模式是我们命名为 `other` 的一个变量。`other` 分支的代码通过将其传递给 `move_player` 函数来使用这个变量。
+
+  即使我们没有列出 `u8` 所有可能的值，这段代码依然能够编译，因为最后一个模式将匹配所有未被特殊列出的值。这种通配模式满足了 `match` 必须被穷尽的要求。请注意，**我们必须将通配分支放在最后，因为模式是按顺序匹配的**。
+
+  Rust 还提供了一个模式，当我们不想使用通配模式获取的值时，请使用 `_` ，这是一个特殊的模式，可以匹配任意值而不绑定到该值。这告诉 Rust 我们不会使用这个值，所以 Rust 也不会警告我们存在未使用的变量。
+
+  让我们改变游戏规则：现在，当你掷出的值不是 3 或 7 的时候，你必须再次掷出。这种情况下我们不需要使用这个值，所以我们改动代码使用 `_` 来替代变量 `other` ：
+
+  ```rust
+      let dice_roll = 9;
+      match dice_roll {
+          3 => add_fancy_hat(),
+          7 => remove_fancy_hat(),
+          _ => reroll(),
+      }
+  
+      fn add_fancy_hat() {}
+      fn remove_fancy_hat() {}
+      fn reroll() {}
+  ```
+
+- **`if let` 简洁控制流** 
+
+  考虑下面的程序，它匹配一个 `config_max` 变量中的 `Option<u8>` 值并只希望当值为 `Some` 成员时执行代码：
+
+  ```rust
+      let config_max = Some(3u8);
+      match config_max {
+          Some(max) => println!("The maximum is configured to be {}", max),
+          _ => (),
+      }
+  ```
+
+  我们可以使用 `if let` 这种更短的方式编写。`if let` 是 `match` 的一个语法糖，它当值匹配某一模式时执行代码而忽略所有其他值。如下代码上面的 `match` 行为一致：
+
+  ```rust
+  	let config_max = Some(3u8);
+  	if let Some(max) = config_max {
+     		println!("The maximum is configured to be {}", max);
+  	}
+  ```
+
+  可以在 `if let` 中包含一个 `else`。`else` 块中的代码与 `match` 表达式中的 `_` 分支块中的代码相同，这样的 `match` 表达式就等同于 `if let` 和 `else`：
+
+  ```rust
+      let mut count = 0;
+      match coin {
+          Coin::Quarter(state) => println!("State quarter from {:?}!", state),
+          _ => count += 1,
+      }
+  ```
+  
+  等价于：
+  
+  ```rust
+  	let mut count = 0;
+  	if let Coin::Quarter(state) = coin {
+      	println!("State quarter from {:?}!", state);
+  	} else {
+      	count += 1;
+  	}
+  ```
