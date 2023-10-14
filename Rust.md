@@ -1933,3 +1933,380 @@ pub mod hosting {
 > 如果你对同一模块同时使用这两种路径风格，会得到一个编译错误。在同一项目中的不同模块混用不同的路径风格是允许的，不过这会使他人感到疑惑。
 >
 > 使用 *mod.rs* 这一文件名的风格的主要缺点是会导致项目中出现很多 *mod.rs* 文件，当你在编辑器中同时打开它们时会感到疑惑。
+
+
+
+### 集合
+
+####  Vector 
+
+- **创建Vector**
+
+  创建一个新的空 vector，可以调用 `Vec::new` 函数，注意这里我们增加了一个类型注解。因为没有向这个 vector 中插入任何值，Rust 并不知道我们想要储存什么类型的元素。这是一个非常重要的点。
+
+  ```rust
+      let v: Vec<i32> = Vec::new();
+  ```
+
+  通常，我们会用初始值来创建一个 `Vec<T>`， 而 Rust 会推断出储存值的类型，所以很少会需要这些类型注解。为了方便 Rust 提供了 `vec!` 宏，这个宏会根据我们提供的值来创建一个新的 vector。
+
+   ```rust
+      let v = vec![1, 2, 3];
+   ```
+
+
+- **更新Vector**
+
+  对于新建一个 vector 并向其增加元素，可以使用 `push` 方法：
+
+  ```rust
+      let mut v = Vec::new();
+  
+      v.push(5);
+      v.push(6);
+  ```
+
+  示例 8-3：使用 `push` 方法向 vector 增加值
+
+  如第三章中讨论的任何变量一样，如果想要能够改变它的值，必须使用 `mut` 关键字使其可变。放入其中的所有值都是 `i32` 类型的，而且 Rust 也根据数据做出如此判断，所以不需要 `Vec<i32>` 注解。
+
+- **读取 vector**
+
+  有两种方法引用 vector 中储存的值：通过索引或使用 `get` 方法：
+
+  ```rust
+      let v = vec![1, 2, 3, 4, 5];
+  
+      let third: &i32 = &v[2];
+      println!("The third element is {third}");
+  
+      let third: Option<&i32> = v.get(2);
+      match third {
+          Some(third) => println!("The third element is {third}"),
+          None => println!("There is no third element."),
+      }
+  ```
+
+  索引越界会导致panic，`get`越界只会返回None。
+
+  🧐一旦程序获取了一个有效的引用，借用检查器将会执行所有权和借用规则来确保 vector 内容的这个引用和任何其他引用保持有效。当我们获取了 vector 的第一个元素的不可变引用并尝试在 vector 末尾增加一个元素的时候，如果尝试在函数的后面引用这个元素是行不通的：
+
+  ```rust
+      let mut v = vec![1, 2, 3, 4, 5];
+  
+      let first = &v[0];
+  
+      v.push(6);
+  
+      println!("The first element is: {first}");
+  ___________________________________________________________
+  compile error !
+  ```
+
+  在 vector 的结尾增加新元素时，在没有足够空间将所有元素依次相邻存放的情况下，可能会要求分配新内存并将老的元素拷贝到新的空间中。这时，第一个元素的引用就指向了被释放的内存。借用规则阻止程序陷入这种状况。
+
+- **遍历 vector**
+
+  如果想要依次访问 vector 中的每一个元素，我们可以遍历其所有的元素而无需通过索引一次一个的访问：
+
+  ```rust
+      let v = vec![100, 32, 57];
+      for i in &v {
+          println!("{i}");
+      }
+  ```
+
+  我们也可以遍历可变 vector 的每一个元素的可变引用以便能改变它们：
+
+  ```rust
+      let mut v = vec![100, 32, 57];
+      for i in &mut v {
+          *i += 50;
+      }
+  ```
+
+- **使用枚举来储存多种类型**
+
+  vector 只能储存相同类型的值。这是很不方便的；绝对会有需要储存一系列不同类型的值的用例。当需要在 vector 中储存不同类型值时，我们可以定义并使用一个枚举：
+
+```rust
+    enum SpreadsheetCell {
+        Int(i32),
+        Float(f64),
+        Text(String),
+    }
+
+    let row = vec![
+        SpreadsheetCell::Int(3),
+        SpreadsheetCell::Text(String::from("blue")),
+        SpreadsheetCell::Float(10.12),
+    ];
+```
+
+- **丢弃 vector 时也会丢弃其所有元素**
+
+  类似于任何其他的 `struct`，vector 在其离开作用域时会被释放：
+
+  ```rust
+      {
+          let v = vec![1, 2, 3, 4];
+  
+          // do stuff with v
+      } // <- v goes out of scope and is freed here
+  ```
+
+  当 vector 被丢弃时，所有其内容也会被丢弃，这意味着这里它包含的整数将被清理。借用检查器确保了任何 vector 中内容的引用仅在 vector 本身有效时才可用。
+
+#### 字符串
+
+字符串就是作为字节的集合外加一些方法实现的，很多 `Vec` 可用的方法在 `String` 中同样可用，当这些字节被解释为文本时，这些方法提供了实用的功能。
+
+在开始深入这些方面之前，我们需要讨论一下术语 **字符串** 的具体意义。Rust 的核心语言中只有一种字符串类型：字符串 slice `str`，它通常以被借用的形式出现，`&str`。第四章讲到了 **字符串 slices**：它们是一些对储存在别处的 UTF-8 编码字符串数据的引用。由于字符串字面值被储存在程序的二进制输出中，因此字符串字面值也是字符串 slices。
+
+- **创建字符串**
+
+  事实上 `String` 被实现为一个带有一些额外保证、限制和功能的字节 vector 的封装。其中一个同样作用于 `Vec<T>` 和 `String` 函数的例子是用来新建一个实例的 `new` 函数：
+
+  ```rust
+      let mut s = String::new();
+  ```
+
+  这新建了一个叫做 `s` 的空的字符串。
+
+  通常字符串会有初始数据，因为我们希望一开始就有这个字符串。为此，可以使用 `to_string` 方法，它能用于任何实现了 `Display` trait 的类型，比如字符串字面值：
+
+  ```rust
+      let data = "initial contents";
+  
+      let s = data.to_string();
+  
+      // 该方法也可直接用于字符串字面值：
+      let s = "initial contents".to_string();
+  ```
+
+- **更新字符串**
+
+  - 使用 `push_str` 和 `push` 附加字符串
+
+    `String` 的大小可以增加，其内容也可以改变，就像可以放入更多数据来改变 `Vec` 的内容一样。另外，可以方便的使用 `+` 运算符或 `format!` 宏来拼接 `String` 值。
+
+    可以通过 `push_str` 方法来附加字符串 slice，从而使 `String` 变长，如示例 8-15 所示。
+
+    ```rust
+        let mut s = String::from("foo");
+        s.push_str("bar");
+    ```
+
+    执行这两行代码之后，`s` 将会包含 `foobar`。`push_str` 方法采用字符串 slice，因为我们并不需要获取参数的所有权。例如，我们希望在将 `s2` 的内容附加到 `s1` 之后还能使用它：
+
+    ```rust
+        let mut s1 = String::from("foo");
+        let s2 = "bar";
+        s1.push_str(s2);
+        println!("s2 is {s2}");
+    ```
+
+    `push` 方法被定义为获取一个单独的字符作为参数，并附加到 `String` 中：
+
+    ```rust
+        let mut s = String::from("lo");
+        s.push('l');
+    ```
+
+  -  使用 `+` 运算符或 `format!` 宏拼接字符串🧐
+
+    通常你会希望将两个已知的字符串合并在一起。一种办法是像这样使用 `+` 运算符：
+
+    ```rust
+        let s1 = String::from("Hello, ");
+        let s2 = String::from("world!");
+        let s3 = s1 + &s2; // 注意 s1 被移动了，不能继续使用
+    ```
+
+    执行完这些代码之后，字符串 `s3` 将会包含 `Hello, world!`。`s1` 在相加后不再有效的原因，和使用 `s2` 的引用的原因，与使用 `+` 运算符时调用的函数签名有关。`+` 运算符使用了 `add` 函数，这个函数签名看起来像这样：
+
+    ```rust
+    fn add(self, s: &str) -> String {
+    ```
+
+    首先，`s2` 使用了 `&`，意味着我们使用第二个字符串的 **引用** 与第一个字符串相加。这是因为 `add` 函数的 `s` 参数：只能将 `&str` 和 `String` 相加，不能将两个 `String` 值相加。不过等一下 —— 正如 `add` 的第二个参数所指定的，`&s2` 的类型是 `&String` 而不是 `&str`。那么为什么示例还能编译呢？
+
+    之所以能够在 `add` 调用中使用 `&s2` 是因为 **`&String` 可以被 强转（*coerced*）成 `&str`**。当`add`函数被调用时，Rust 使用了一个被称为 **Deref 强制转换**（*deref coercion*）的技术，你可以将其理解为它把 `&s2` 变成了 `&s2[..]`。
+
+    其次，可以发现签名中 `add` 获取了 `self` 的所有权，因为 `self` **没有** 使用 `&`。这意味着示例 8-18 中的 `s1` 的所有权将被移动到 `add` 调用中，之后就不再有效。所以虽然 `let s3 = s1 + &s2;` 看起来就像它会复制两个字符串并创建一个新的字符串，而实际上这个语句会获取 `s1` 的所有权，附加上从 `s2` 中拷贝的内容，并返回结果的所有权。换句话说，它看起来好像生成了很多拷贝，不过实际上并没有，这个实现比拷贝要更高效。
+
+    如果想要级联多个字符串，`+` 的行为就显得笨重了：
+
+    ```rust
+        let s1 = String::from("tic");
+        let s2 = String::from("tac");
+        let s3 = String::from("toe");
+    
+        let s = s1 + "-" + &s2 + "-" + &s3;
+    ```
+
+    这时 `s` 的内容会是 “tic-tac-toe”。在有这么多 `+` 和 `"` 字符的情况下，很难理解具体发生了什么。对于更为复杂的字符串链接，可以使用 `format!` 宏：
+
+    ```rust
+        let s1 = String::from("tic");
+        let s2 = String::from("tac");
+        let s3 = String::from("toe");
+    
+        let s = format!("{s1}-{s2}-{s3}");
+    ```
+
+    这些代码也会将 `s` 设置为 “tic-tac-toe”。`format!` 与 `println!` 的工作原理相同，不过不同于将输出打印到屏幕上，它返回一个带有结果内容的 `String`。这个版本就好理解的多，宏 `format!` 生成的代码使用引用所以不会获取任何参数的所有权。
+
+- **索引字符串**
+
+  在很多语言中，通过索引来引用字符串中的单独字符是有效且常见的操作。然而在 Rust 中，如果你尝试使用索引语法访问 `String` 的一部分，会出现一个错误：
+
+  ```rust
+      let s1 = String::from("hello");
+      let h = s1[0];
+  ______________________________________
+  compile error !
+  ```
+
+  **🧐Rust 的字符串不支持索引，因为Rust字符串采用变长的UTF-8编码。**索引操作预期总是需要常数时间（O(1)）。但是对于 `String` 不可能保证这样的性能，因为 Rust 必须从开头到索引位置遍历来确定有多少有效的字符。
+
+  索引字符串通常是一个坏点子，因为字符串索引应该返回的类型是不明确的：字节值、字符、字形簇或者字符串 slice。因此，如果你真的希望使用索引创建字符串 slice 时，Rust 会要求你更明确一些。为了更明确索引并表明你需要一个字符串 slice，相比使用 `[]` 和单个值的索引，可以使用 `[]` 和一个 range 来创建含特定字节的字符串 slice：
+
+  ```rust
+  let hello = "Здравствуйте";
+  
+  let s = &hello[0..4];
+  ```
+
+  这里，`s` 会是一个 `&str`，它包含字符串的头四个字节。早些时候，我们提到了这些字母都是两个字节长的，所以这意味着 `s` 将会是 “Зд”。如果获取 `&hello[0..1]` 会发生什么呢？答案是：Rust 在运行时会 panic，就跟访问 vector 中的无效索引时一样。
+
+- **遍历字符串**
+
+  操作字符串每一部分的最好的方法是明确表示需要字符还是字节。对于单独的 Unicode 标量值使用 `chars` 方法。对 “Зд” 调用 `chars` 方法会将其分开并返回两个 `char` 类型的值，接着就可以遍历其结果来访问每一个元素了：
+
+  ```rust
+  for c in "Зд".chars() {
+      println!("{c}");
+  }
+  ```
+
+  这些代码会打印出如下内容：
+
+  ```text
+  З
+  д
+  ```
+
+  另外 `bytes` 方法返回每一个原始字节，这可能会适合你的使用场景：
+
+  ```rust
+  for b in "Зд".bytes() {
+      println!("{b}");
+  }
+  ```
+
+  这些代码会打印出组成 `String` 的 4 个字节：
+
+  ```text
+  208
+  151
+  208
+  180
+  ```
+
+  不过请记住有效的 Unicode 标量值可能会由不止一个字节组成。
+
+  从字符串中获取如同天城文这样的字形簇是很复杂的，所以标准库并没有提供这个功能。
+
+#### Hash Map
+
+- **创建Hash Map**
+
+  可以使用 `new` 创建一个空的 `HashMap`，并使用 `insert` 增加元素：
+
+  ```rust
+      use std::collections::HashMap;
+  
+      let mut scores = HashMap::new();
+  
+      scores.insert(String::from("Blue"), 10);
+      scores.insert(String::from("Yellow"), 50);
+  ```
+
+  **注意必须首先 `use` 标准库中集合部分的 `HashMap`**。在这三个常用集合中，`HashMap` 是最不常用的，所以并没有被 prelude 自动引用。
+
+-  **读取Hash Map**
+
+  可以通过 `get` 方法并提供对应的键来从哈希 map 中获取值，如示例 8-21 所示：
+
+  ```rust
+      use std::collections::HashMap;
+  
+      let mut scores = HashMap::new();
+  
+      scores.insert(String::from("Blue"), 10);
+      scores.insert(String::from("Yellow"), 50);
+  
+      let team_name = String::from("Blue");
+      let score = scores.get(&team_name).copied().unwrap_or(0);
+  ```
+
+  可以使用与 vector 类似的方式来遍历哈希 map 中的每一个键值对，也就是 `for` 循环：
+
+  ```rust
+      use std::collections::HashMap;
+  
+      let mut scores = HashMap::new();
+  
+      scores.insert(String::from("Blue"), 10);
+      scores.insert(String::from("Yellow"), 50);
+  
+      for (key, value) in &scores {
+          println!("{key}: {value}");
+      }
+  ```
+
+  这会以任意顺序打印出每一个键值对：
+
+  ```text
+  Yellow: 50
+  Blue: 10
+  ```
+
+- **更新Hash Map**
+
+  - 覆盖一个值
+
+    如果我们插入了一个键值对，接着用相同的键插入一个不同的值，与这个键相关联的旧值将被替换。即便示例 8-23 中的代码调用了两次 `insert`，哈希 map 也只会包含一个键值对，因为两次都是对蓝队的键插入的值：
+
+    ```rust
+      use std::collections::HashMap;
+    
+      let mut scores = HashMap::new();
+    
+      scores.insert(String::from("Blue"), 10);
+      scores.insert(String::from("Blue"), 25);
+    
+      println!("{:?}", scores);
+    ```
+
+    这会打印出 `{"Blue": 25}`。原始的值 `10` 则被覆盖了。
+
+  - 只在键没有对应值时插入键值对
+  
+    我们经常会检查某个特定的键是否已经存在于哈希 map 中并进行如下操作：如果哈希 map 中键已经存在则不做任何操作。如果不存在则连同值一块插入。
+  
+    为此哈希 map 有一个特有的 API，叫做 `entry`，它获取我们想要检查的键作为参数。`entry` 函数的返回值是一个枚举，`Entry`，它代表了可能存在也可能不存在的值。比如说我们想要检查黄队的键是否关联了一个值。如果没有，就插入值 50，对于蓝队也是如此。使用 `entry` API 的代码看起来像示例 8-24 这样：
+  
+    ```rust
+        use std::collections::HashMap;
+    
+        let mut scores = HashMap::new();
+        scores.insert(String::from("Blue"), 10);
+    
+        scores.entry(String::from("Yellow")).or_insert(50);
+        scores.entry(String::from("Blue")).or_insert(50);
+    
+        println!("{:?}", scores);
+    ```
+
