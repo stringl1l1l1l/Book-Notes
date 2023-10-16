@@ -2199,11 +2199,11 @@ pub mod hosting {
 
   另外 `bytes` 方法返回每一个原始字节，这可能会适合你的使用场景：
 
-  ```rust
+    ```rust
   for b in "Зд".bytes() {
       println!("{b}");
   }
-  ```
+    ```
 
   这些代码会打印出组成 `String` 的 4 个字节：
 
@@ -2310,3 +2310,641 @@ pub mod hosting {
         println!("{:?}", scores);
     ```
 
+### 泛型、Trait和生命周期
+
+#### 泛型
+
+- **在函数中使用泛型**
+
+  函数 `largest` 有泛型类型 `T`。它有个参数 `list`，其类型是元素为 `T` 的 slice。`largest` 函数会返回一个与 `T` 相同类型的引用。
+
+  ```rust
+    fn largest<T>(list: &[T]) -> &T {
+        let mut largest = &list[0];
+  
+        for item in list {
+            if item > largest {
+                largest = item;
+            }
+        }
+  
+        largest
+    }
+  
+    fn main() {
+        let number_list = vec![34, 50, 25, 100, 65];
+  
+        let result = largest(&number_list);
+        println!("The largest number is {}", result);
+  
+        let char_list = vec!['y', 'm', 'a', 'q'];
+  
+        let result = largest(&char_list);
+        println!("The largest char is {}", result);
+    }
+  ```
+
+  如果现在就编译这个代码，会出现如下错误：
+
+  ```console
+    error[E0369]: binary operation `>` cannot be applied to type `&T`
+     --> src/main.rs:5:17
+      |
+    5 |         if item > largest {
+      |            ---- ^ ------- &T
+      |            |
+      |            &T
+      |
+    help: consider restricting type parameter `T`
+      |
+    1 | fn largest<T: std::cmp::PartialOrd>(list: &[T]) -> &T {
+      |             ++++++++++++++++++++++
+  
+  ```
+
+  这个错误表明 `largest` 的函数体不能适用于 `T` 的所有可能的类型。因为在函数体需要比较 `T` 类型的值，不过它只能用于我们知道如何排序的类型。为了开启比较功能，标准库中定义的 `std::cmp::PartialOrd` trait 可以实现类型的比较功能。依照帮助说明中的建议，我们限制 `T` 只对实现了 `PartialOrd` 的类型有效后代码就可以编译了，因为标准库为 `i32` 和 `char` 实现了 `PartialOrd`。
+
+- **在结构体中使用泛型**
+
+  ```rust
+  struct Point<T> {
+      x: T,
+      y: T,
+  }
+  
+  fn main() {
+      let integer = Point { x: 5, y: 10 };
+      let float = Point { x: 1.0, y: 4.0 };
+  }
+  ```
+  
+  注意 `Point<T>` 的定义中只使用了一个泛型类型，这个定义表明结构体 `Point<T>` 对于一些类型 `T` 是泛型的，而且字段 `x` 和 `y` 都是相同类型的，无论它具体是何类型。
+  
+  如果想要定义一个 `x` 和 `y` 可以有不同类型且仍然是泛型的 `Point` 结构体，我们可以使用多个泛型类型参数。在示例 10-8 中，我们修改 `Point` 的定义为拥有两个泛型类型 `T` 和 `U`。其中字段 `x` 是 `T` 类型的，而字段 `y` 是 `U` 类型的：
+  
+  ```rust
+  struct Point<T, U> {
+      x: T,
+      y: U,
+  }
+  
+  fn main() {
+      let both_integer = Point { x: 5, y: 10 };
+      let both_float = Point { x: 1.0, y: 4.0 };
+      let integer_and_float = Point { x: 5, y: 4.0 };
+  }
+  ```
+
+- **在枚举中使用泛型**
+
+  和结构体类似，枚举也可以在成员中存放泛型数据类型。第六章我们曾用过标准库提供的 `Option<T>` 枚举，这里再回顾一下：
+
+  ```rust
+  enum Option<T> {
+      Some(T),
+      None,
+  }
+  ```
+
+  现在这个定义应该更容易理解了。如你所见 `Option<T>` 是一个拥有泛型 `T` 的枚举，它有两个成员：`Some`，它存放了一个类型 `T` 的值，和不存在任何值的`None`。通过 `Option<T>` 枚举可以表达有一个可能的值的抽象概念，同时因为 `Option<T>` 是泛型的，无论这个可能的值是什么类型都可以使用这个抽象。
+
+  枚举也可以拥有多个泛型类型。第九章使用过的 `Result` 枚举定义就是一个这样的例子：
+
+  ```rust
+  enum Result<T, E> {
+      Ok(T),
+      Err(E),
+  }
+  ```
+
+  `Result` 枚举有两个泛型类型，`T` 和 `E`。`Result` 有两个成员：`Ok`，它存放一个类型 `T` 的值，而 `Err` 则存放一个类型 `E` 的值。这个定义使得 `Result` 枚举能很方便的表达任何可能成功（返回 `T` 类型的值）也可能失败（返回 `E` 类型的值）的操作。实际上，这就是我们在示例 9-3 用来打开文件的方式：当成功打开文件的时候，`T` 对应的是 `std::fs::File` 类型；而当打开文件出现问题时，`E` 的值则是 `std::io::Error` 类型。
+
+  当你意识到代码中定义了多个结构体或枚举，它们不一样的地方只是其中的值的类型的时候，不妨通过泛型类型来避免重复。
+
+- **在方法中使用泛型**
+
+  在为结构体和枚举实现方法时，一样也可以用泛型，注意必须在 `impl` 后面声明 `T`，这样就可以在 `Point<T>` 上实现的方法中使用 `T` 了。：
+
+  ```rust
+  struct Point<T> {
+      x: T,
+      y: T,
+  }
+  
+  impl<T> Point<T> {
+      fn x(&self) -> &T {
+          &self.x
+      }
+  }
+  
+  fn main() {
+      let p = Point { x: 5, y: 10 };
+  
+      println!("p.x = {}", p.x());
+  }
+  ```
+
+  定义方法时也可以为泛型指定限制（constraint）。例如，可以选择为 `Point<f32>` 实例实现方法，而不是为泛型 `Point` 实例，这段代码意味着 `Point<f32>` 类型会有一个方法 `distance_from_origin`，而其他 `T` 不是 `f32` 类型的 `Point<T>` 实例则没有定义此方法：
+
+  ```rust
+  impl Point<f32> {
+      fn distance_from_origin(&self) -> f32 {
+          (self.x.powi(2) + self.y.powi(2)).sqrt()
+      }
+  }
+  ```
+
+- **泛型代码的性能**
+
+  泛型并不会使程序比具体类型运行得慢。Rust 通过在编译时进行泛型代码的 **单态化**（*monomorphization*）来保证效率。单态化是一个通过填充编译时使用的具体类型，将通用代码转换为特定代码的过程。
+
+  让我们看看这如何用于标准库中的 `Option` 枚举：
+
+  ```rust
+  let integer = Some(5);
+  let float = Some(5.0);
+  ```
+
+  当 Rust 编译这些代码的时候，它会进行单态化。编译器会读取传递给 `Option<T>` 的值并发现有两种 `Option<T>`：一个对应 `i32` 另一个对应 `f64`。为此，它会将泛型定义 `Option<T>` 展开为两个针对 `i32` 和 `f64` 的定义，接着将泛型定义替换为这两个具体的定义。
+
+  编译器生成的单态化版本的代码看起来像这样（编译器会使用不同于如下假想的名字）：
+
+  ```rust
+  enum Option_i32 {
+      Some(i32),
+      None,
+  }
+  
+  enum Option_f64 {
+      Some(f64),
+      None,
+  }
+  
+  fn main() {
+      let integer = Option_i32::Some(5);
+      let float = Option_f64::Some(5.0);
+  }
+  ```
+  
+  泛型 `Option<T>` 被编译器替换为了具体的定义。因为 Rust 会将每种情况下的泛型代码编译为具体类型，使用泛型没有运行时开销。当代码运行时，它的执行效率就跟好像手写每个具体定义的重复代码一样。这个单态化过程正是 Rust 泛型在运行时极其高效的原因。
+
+#### Trait
+- **定义trait**
+  一个类型的行为由其可供调用的方法构成。如果可以对不同类型调用相同的方法的话，这些类型就可以共享相同的行为了。trait 定义是一种将方法签名组合起来的方法，目的是定义一个实现某些目的所必需的行为的集合。
+
+  我们想要创建一个名为 `aggregator` 的多媒体聚合库用来显示可能储存在 `NewsArticle` 或 `Tweet` 实例中的数据摘要。为了实现功能，每个结构体都要能够获取摘要，这样的话就可以调用实例的 `summarize` 方法来请求摘要。
+
+  ```rust
+  pub trait Summary {
+      fn summarize(&self) -> String;
+  }
+  ```
+
+- **实现trait**
+
+  现在我们定义了 `Summary` trait 的签名，接着就可以在多媒体聚合库中实现这个类型了。示例中展示了 `NewsArticle` 结构体上 `Summary` trait 的一个实现，它使用标题、作者和创建的位置作为 `summarize` 的返回值。对于 `Tweet` 结构体，我们选择将 `summarize` 定义为用户名后跟推文的全部文本作为返回值。
+
+  ```rust
+  pub struct NewsArticle {
+      pub headline: String,
+      pub location: String,
+      pub author: String,
+      pub content: String,
+  }
+  
+  impl Summary for NewsArticle {
+      fn summarize(&self) -> String {
+          format!("{}, by {} ({})", self.headline, self.author, self.location)
+      }
+  }
+  
+  pub struct Tweet {
+      pub username: String,
+      pub content: String,
+      pub reply: bool,
+      pub retweet: bool,
+  }
+  
+  impl Summary for Tweet {
+      fn summarize(&self) -> String {
+          format!("{}: {}", self.username, self.content)
+      }
+  }
+  ```
+
+  现在库在 `NewsArticle` 和 `Tweet` 上实现了`Summary` trait，crate 的用户可以像调用常规方法一样调用 `NewsArticle` 和 `Tweet` 实例的 trait 方法了。唯一的区别是 trait 必须和类型一起引入作用域以便使用额外的 trait 方法。这是一个二进制 crate 如何利用 `aggregator` 库 crate 的例子：
+
+  ```rust
+  use aggregator::{Summary, Tweet};
+  
+  fn main() {
+      let tweet = Tweet {
+          username: String::from("horse_ebooks"),
+          content: String::from(
+              "of course, as you probably already know, people",
+          ),
+          reply: false,
+          retweet: false,
+      };
+  
+      println!("1 new tweet: {}", tweet.summarize());
+  }
+  ```
+
+  这会打印出 `1 new tweet: horse_ebooks: of course, as you probably already know, people`。
+
+  实现 trait 时需要注意的一个限制是，只有当至少一个 trait 或者要实现 trait 的类型位于 crate 的本地作用域时，才能为该类型实现 trait。例如，可以为 `aggregator` crate 的自定义类型 `Tweet` 实现如标准库中的 `Display` trait，这是因为 `Tweet` 类型位于 `aggregator` crate 本地的作用域中。类似地，也可以在 `aggregator` crate 中为 `Vec<T>` 实现 `Summary`，这是因为 `Summary` trait 位于 `aggregator` crate 本地作用域中。
+
+  不能为外部类型实现外部 trait。例如，不能在 `aggregator` crate 中为 `Vec<T>` 实现 `Display` trait。这是因为 `Display` 和 `Vec<T>` 都定义于标准库中，它们并不位于 `aggregator` crate 本地作用域中。这个限制是被称为 **相干性**（*coherence*）的程序属性的一部分，或者更具体的说是 **孤儿规则**（*orphan rule*），其得名于不存在父类型。这条规则确保了其他人编写的代码不会破坏你代码，反之亦然。没有这条规则的话，两个 crate 可以分别对相同类型实现相同的 trait，而 Rust 将无从得知应该使用哪一个实现。
+
+- **trait默认实现**
+
+  示例中我们为 `Summary` trait 的 `summarize` 方法指定一个默认的字符串值，而不是只定义方法签名：
+
+  ```rust
+pub trait Summary {
+      fn summarize(&self) -> String {
+          String::from("(Read more...)")
+      }
+  }
+  ```
+  
+  如果想要对 `NewsArticle` 实例使用这个默认实现，可以通过 `impl Summary for NewsArticle {}` 指定一个空的 `impl` 块。
+
+  **默认实现允许调用相同 trait 中的其他方法，哪怕这些方法没有默认实现。**如此，trait 可以提供很多有用的功能而只需要实现指定一小部分内容。例如，我们可以定义 `Summary` trait，使其具有一个需要实现的 `summarize_author` 方法，然后定义一个 `summarize` 方法，此方法的默认实现调用 `summarize_author` 方法：
+
+  ```rust
+pub trait Summary {
+      fn summarize_author(&self) -> String;
+  
+      fn summarize(&self) -> String {
+          format!("(Read more from {}...)", self.summarize_author())
+      }
+  }
+  ```
+  
+  为了使用这个版本的 `Summary`，只需在实现 trait 时定义 `summarize_author` 即可：
+
+  ```rust
+impl Summary for Tweet {
+      fn summarize_author(&self) -> String {
+          format!("@{}", self.username)
+      }
+  }
+  ```
+  
+  一旦定义了 `summarize_author`，我们就可以对 `Tweet` 结构体的实例调用 `summarize` 了，而 `summarize` 的默认实现会调用我们提供的 `summarize_author` 定义。因为实现了 `summarize_author`，`Summary` trait 就提供了 `summarize` 方法的功能，且无需编写更多的代码。
+
+  ```rust
+    let tweet = Tweet {
+          username: String::from("horse_ebooks"),
+          content: String::from(
+              "of course, as you probably already know, people",
+          ),
+          reply: false,
+          retweet: false,
+      };
+  
+      println!("1 new tweet: {}", tweet.summarize());
+  ```
+  
+  这会打印出 `1 new tweet: (Read more from @horse_ebooks...)`。
+
+-  **`impl Trait` 语法**
+
+  使用 `impl Trait` 语法，使得参数支持任何实现了指定 trait 的类型。示例中，我们可以传递任何 `NewsArticle` 或 `Tweet` 的实例来调用 `notify`，在 `notify` 函数体中，可以调用任何来自 `Summary` trait 的方法，比如 `summarize`。任何用其它如 `String` 或 `i32` 的类型调用该函数的代码都不能编译，因为它们没有实现 `Summary`：
+
+  ```rust
+  pub fn notify(item: &impl Summary) {
+      println!("Breaking news! {}", item.summarize());
+  }
+  ```
+
+  `impl Trait` 语法适用于直观的例子，它实际上是一种较长形式语法的语法糖。我们称为 ***trait bound***，它看起来像：
+  
+  ```rust
+  pub fn notify<T: Summary>(item: &T) {
+      println!("Breaking news! {}", item.summarize());
+  }
+  ```
+  
+  这与之前的例子相同，不过稍微冗长了一些。trait bound 与泛型参数声明在一起，位于尖括号中的冒号后面。
+  
+  然而，使用过多的 trait bound 也有缺点。每个泛型有其自己的 trait bound，所以有多个泛型参数的函数在名称和参数列表之间会有很长的 trait bound 信息，这使得函数签名难以阅读。为此，Rust 有另一个在函数签名之后的 **`where` 从句**中指定 trait bound 的语法。所以除了这么写：
+  
+  ```rust
+  fn some_function<T: Display + Clone, U: Clone + Debug>(t: &T, u: &U) -> i32 {
+  ```
+  
+  还可以像这样使用 `where` 从句：
+  
+  ```rust
+  fn some_function<T, U>(t: &T, u: &U) -> i32
+  where
+      T: Display + Clone,
+      U: Clone + Debug,
+  {
+  ```
+  
+  这个函数签名就显得不那么杂乱，函数名、参数列表和返回值类型都离得很近，看起来跟没有那么多 trait bounds 的函数很像。
+  
+  
+  
+  也可以在返回值中使用 `impl Trait` 语法，来返回实现了某个 trait 的类型：
+  
+  ```rust
+  fn returns_summarizable() -> impl Summary {
+      Tweet {
+          username: String::from("horse_ebooks"),
+          content: String::from(
+              "of course, as you probably already know, people",
+          ),
+          reply: false,
+          retweet: false,
+      }
+  }
+  ```
+  
+  通过使用 `impl Summary` 作为返回值类型，我们指定了 `returns_summarizable` 函数返回某个实现了 `Summary` trait 的类型，但是不确定其具体的类型。在这个例子中 `returns_summarizable` 返回了一个 `Tweet`，不过调用方并不知情。
+  
+  
+  
+  通过使用带有 trait bound 的泛型参数的 `impl` 块，可以有条件地只为那些实现了特定 trait 的类型实现方法。例如，下面代码中的类型 `Pair<T>` 总是实现了 `new` 方法并返回一个 `Pair<T>` 的实例。不过在下一个 `impl` 块中，只有那些为 `T` 类型实现了 `PartialOrd` trait（来允许比较） **和** `Display` trait（来启用打印）的 `Pair<T>` 才会实现 `cmp_display` 方法：
+  
+  ```rust
+  use std::fmt::Display;
+  
+  struct Pair<T> {
+      x: T,
+      y: T,
+  }
+  
+  impl<T> Pair<T> {
+      fn new(x: T, y: T) -> Self {
+          Self { x, y }
+      }
+  }
+  
+  impl<T: Display + PartialOrd> Pair<T> {
+      fn cmp_display(&self) {
+          if self.x >= self.y {
+              println!("The largest member is x = {}", self.x);
+          } else {
+              println!("The largest member is y = {}", self.y);
+          }
+      }
+  }
+  ```
+  
+  也可以对任何实现了特定 trait 的类型有条件地实现 trait。对任何满足特定 trait bound 的类型实现 trait 被称为 *blanket implementations*，它们被广泛的用于 Rust 标准库中。例如，标准库为任何实现了 `Display` trait 的类型实现了 `ToString` trait。这个 `impl` 块看起来像这样：
+  
+  ```rust
+  impl<T: Display> ToString for T {
+      // --snip--
+  }
+  ```
+  
+
+#### 生命周期🧐
+
+生命周期是另一类我们已经使用过的泛型。不同于确保类型有期望的行为，生命周期确保引用如预期一直有效。**生命周期的主要目标是避免悬垂引用**。考虑下面的程序，它有一个外部作用域和一个内部作用域：
+
+```rust
+fn main() {
+    let r;
+
+    {
+        let x = 5;
+        r = &x;
+    }
+
+    println!("r: {}", r);
+}
+```
+
+外部作用域声明了一个没有初值的变量 `r`，而内部作用域声明了一个初值为 5 的变量`x`。在内部作用域中，我们尝试将 `r` 的值设置为一个 `x` 的引用。接着在内部作用域结束后，尝试打印出 `r` 的值。这段代码不能编译因为 `r` 引用的值在尝试使用之前就离开了作用域。如下是错误信息：
+
+```console
+error[E0597]: `x` does not live long enough
+ --> src/main.rs:6:13
+  |
+6 |         r = &x;
+  |             ^^ borrowed value does not live long enough
+7 |     }
+  |     - `x` dropped here while still borrowed
+8 |
+9 |     println!("r: {}", r);
+  |                       - borrow later used here
+```
+
+变量 `x` 并没有 “存在的足够久”。其原因是 `x` 在到达第 7 行内部作用域结束时就离开了作用域。不过 `r` 在外部作用域仍是有效的；作用域越大我们就说它 “存在的越久”。如果 Rust 允许这段代码工作，`r` 将会引用在 `x` 离开作用域时被释放的内存，这时尝试对 `r` 做任何操作都不能正常工作。那么 Rust 是如何决定这段代码是不被允许的呢？这得益于借用检查器。
+
+- **借用检查器**（*borrow checker*）
+
+  Rust 编译器有一个 **借用检查器**（*borrow checker*），它比较作用域来确保所有的借用都是有效的。
+
+  ```rust
+  fn main() {
+      let r;                // ---------+-- 'a
+                            //          |
+      {                     //          |
+          let x = 5;        // -+-- 'b  |
+          r = &x;           //  |       |
+      }                     // -+       |
+                            //          |
+      println!("r: {}", r); //          |
+  }                         // ---------+
+  ```
+
+  这里将 `r` 的生命周期标记为 `'a` 并将 `x` 的生命周期标记为 `'b`。如你所见，内部的 `'b` 块要比外部的生命周期 `'a` 小得多。在编译时，Rust 比较这两个生命周期的大小，并发现 `r` 拥有生命周期 `'a`，不过它引用了一个拥有生命周期 `'b` 的对象。程序被拒绝编译，因为生命周期 `'b` 比生命周期 `'a` 要小：**被引用的对象比它的引用者存在的时间更短，导致悬垂指针**。
+
+  让我们看看下面这个并没有产生悬垂引用且可以正确编译的例子：
+
+  ```rust
+  fn main() {
+      let x = 5;            // ----------+-- 'b
+                            //           |
+      let r = &x;           // --+-- 'a  |
+                            //   |       |
+      println!("r: {}", r); //   |       |
+                            // --+       |
+  }                         // ----------+
+  ```
+
+  这里 `x` 拥有生命周期 `'b`，比 `'a` 要大。这就意味着 `r` 可以引用 `x`：Rust 知道 `r` 中的引用在 `x` 有效的时候也总是有效的，因为**数据比引用有着更长的生命周期**。
+
+- **函数中的泛型生命周期**
+
+  我们实现一个 `longest` 函数，它返回两个字符串 slice 中较长者，现在还不能编译：
+
+  ```rust
+  fn longest(x: &str, y: &str) -> &str {
+      if x.len() > y.len() {
+          x
+      } else {
+          y
+      }
+  }
+  ```
+
+  会出现如下有关生命周期的错误：
+
+  ```console
+  error[E0106]: missing lifetime specifier
+   --> src/main.rs:9:33
+    |
+  9 | fn longest(x: &str, y: &str) -> &str {
+    |               ----     ----     ^ expected named lifetime parameter
+    |
+    = help: this function's return type contains a borrowed value, but the signature does not say whether it is borrowed from `x` or `y`
+  help: consider introducing a named lifetime parameter
+    |
+  9 | fn longest<'a>(x: &'a str, y: &'a str) -> &'a str {
+    |           ++++     ++          ++          ++
+  
+  ```
+
+  提示文本揭示了返回值需要一个泛型生命周期参数，因为 Rust 并不知道将要返回的引用是指向 `x` 或 `y`。借用检查器自身同样也无法确定，因为它不知道 `x` 和 `y` 的生命周期是如何与返回值的生命周期相关联的。为了修复这个错误，我们将增加泛型生命周期参数来定义引用间的关系以便借用检查器可以进行分析。
+
+- **生命周期注解语法**
+
+  生命周期注解并不改变任何引用的生命周期的长短。相反它们描述了多个引用生命周期相互的关系，而不影响其生命周期。与当函数签名中指定了泛型类型参数后就可以接受任何类型一样，当指定了泛型生命周期后函数也能接受任何生命周期的引用。
+
+  **生命周期参数名称必须以撇号（`'`）开头，其名称通常全是小写**。生命周期参数注解位于引用的 `&` 之后，并有一个空格来将引用类型与生命周期注解分隔开。
+
+  单个的生命周期注解本身没有多少意义，因为生命周期注解告诉 Rust 多个引用的泛型生命周期参数如何相互联系的。让我们在 `longest` 函数的上下文中理解生命周期注解如何相互联系。
+
+  为了在函数签名中使用生命周期注解，需要在函数名和参数列表间的尖括号中声明泛型生命周期（*lifetime*）参数，就像泛型类型（*type*）参数一样。
+
+  我们希望函数签名表达如下限制：也就是这两个参数和返回的引用存活的一样久，两个参数和返回的引用的生命周期是相关的，就像下面的函数签名在每个引用中都加上了 `'a` 那样，这段代码能够编译并会产生我们希望得到的结果：
+
+  ```rust
+  fn longest<'a>(x: &'a str, y: &'a str) -> &'a str {
+      if x.len() > y.len() {
+          x
+      } else {
+          y
+      }
+  }
+  ```
+
+  现在函数签名表明对于某些生命周期 `'a`，函数会获取两个参数，它们都是与生命周期 `'a` 存在的一样长的字符串 slice。函数会返回一个同样也与生命周期 `'a` 存在的一样长的字符串 slice。
+
+  当具体的引用被传递给 `longest` 时，被 `'a` 所替代的具体生命周期是 `x` 的作用域与 `y` 的作用域相重叠的那一部分。换一种说法就是泛型生命周期 `'a` 的具体生命周期等同于 `x` 和 `y` 的生命周期中较小的那一个。
+
+  让我们看看如何通过传递拥有不同具体生命周期的引用来限制 `longest` 函数的使用。下面是一个很直观的例子：
+
+  ```rust
+  fn main() {
+      let string1 = String::from("long string is long");
+  
+      {
+          let string2 = String::from("xyz");
+          let result = longest(string1.as_str(), string2.as_str());
+          println!("The longest string is {}", result);
+      }
+  }
+  ```
+
+  在这个例子中，`string1` 直到外部作用域结束都是有效的，`string2` 则在内部作用域中是有效的，而 `result` 则引用了一些直到内部作用域结束都是有效的值。借用检查器认可这些代码；它能够编译和运行，并打印出 `The longest string is long string is long`。
+
+  接下来，让我们尝试另外一个例子，该例子揭示了 `result` 的引用的生命周期必须是两个参数中较短的那个。以下代码将 `result` 变量的声明移动出内部作用域，但是将 `result` 和 `string2` 变量的赋值语句一同留在内部作用域中。接着，使用了变量 `result` 的 `println!` 也被移动到内部作用域之外。注意下面的代码不能通过编译：
+
+  ```rust
+  fn main() {
+      let string1 = String::from("long string is long");
+      let result;
+      {
+          let string2 = String::from("xyz");
+          result = longest(string1.as_str(), string2.as_str());
+      }
+      println!("The longest string is {}", result);
+  }
+  ```
+
+- **结构体定义中的生命周期注解**
+
+  目前为止，我们定义的结构体全都包含拥有所有权的类型。也可以定义包含引用的结构体，不过这需要为结构体定义中的每一个引用添加生命周期注解。下面有一个存放了一个字符串 slice 的结构体 `ImportantExcerpt`：
+
+  ```rust
+  struct ImportantExcerpt<'a> {
+      part: &'a str,
+  }
+  
+  fn main() {
+      let novel = String::from("Call me Ishmael. Some years ago...");
+      let first_sentence = novel.split('.').next().expect("Could not find a '.'");
+      let i = ImportantExcerpt {
+          part: first_sentence,
+      };
+  }
+  ```
+
+  这个结构体有唯一一个字段 `part`，它存放了一个字符串 slice，这是一个引用。类似于泛型参数类型，必须在结构体名称后面的尖括号中声明泛型生命周期参数，以便在结构体定义中使用生命周期参数。这个注解意味着 `ImportantExcerpt` 的实例不能比其 `part` 字段中的引用存在的更久。
+
+  这里的 `main` 函数创建了一个 `ImportantExcerpt` 的实例，它存放了变量 `novel` 所拥有的 `String` 的第一个句子的引用。`novel` 的数据在 `ImportantExcerpt` 实例创建之前就存在。另外，直到 `ImportantExcerpt` 离开作用域之后 `novel` 都不会离开作用域，所以 `ImportantExcerpt` 实例中的引用是有效的。
+
+- **生命周期省略（Lifetime Elision）**
+
+  函数或方法的参数的生命周期被称为 **输入生命周期**（*input lifetimes*），而返回值的生命周期被称为 **输出生命周期**（*output lifetimes*）。编译器采用三条规则来判断引用何时不需要明确的注解。第一条规则适用于输入生命周期，后两条规则适用于输出生命周期。如果编译器检查完这三条规则后仍然存在没有计算出生命周期的引用，编译器将会停止并生成错误。这些规则适用于 `fn` 定义，以及 `impl` 块。
+
+  1. 第一条规则是编译器为每一个引用参数都分配一个生命周期参数。换句话说就是，函数有一个引用参数的就有一个生命周期参数：`fn foo<'a>(x: &'a i32)`，有两个引用参数的函数就有两个不同的生命周期参数，`fn foo<'a, 'b>(x: &'a i32, y: &'b i32)`，依此类推。
+
+  2. 第二条规则是如果只有一个输入生命周期参数，那么它被赋予所有输出生命周期参数：`fn foo<'a>(x: &'a i32) -> &'a i32`。
+
+  3. 第三条规则是如果方法有多个输入生命周期参数并且其中一个参数是 `&self` 或 `&mut self`，说明是个对象的方法 ，那么所有输出生命周期参数被赋予 `self` 的生命周期。第三条规则使得方法更容易读写，因为只需更少的符号。
+
+- **方法中定义的生命周期注解**
+
+  实现方法时结构体字段的生命周期必须总是在 `impl` 关键字之后声明并在结构体名称之后被使用，因为这些生命周期是结构体类型的一部分。
+
+  `impl` 块里的方法签名中，引用可能与结构体字段中的引用相关联，也可能是独立的。另外，生命周期省略规则也经常让我们无需在方法签名中使用生命周期注解。让我们看看一些使用示例 10-24 中定义的结构体 `ImportantExcerpt` 的例子。
+  
+  首先，这里有一个方法 `level`。其唯一的参数是 `self` 的引用，而且返回值只是一个 `i32`，并不引用任何值：
+  
+  ```rust
+  impl<'a> ImportantExcerpt<'a> {
+      fn level(&self) -> i32 {
+          3
+      }
+  }
+  ```
+  
+  `impl` 之后和类型名称之后的生命周期参数是必要的，不过因为第一条生命周期规则我们并不必须标注 `self` 引用的生命周期。
+  
+- **静态生命周期**
+  
+  这里有一种特殊的生命周期值得讨论：`'static`，其生命周期**能够**存活于整个程序期间。所有的字符串字面值都拥有 `'static` 生命周期，我们也可以选择像下面这样标注出来：
+  
+  ```rust
+  let s: &'static str = "I have a static lifetime.";
+  ```
+  
+  这个字符串的文本被直接储存在程序的二进制文件中而这个文件总是可用的。因此**所有的字符串字面值都是 `'static` 的**。
+  
+
+- **总结**
+
+  让我们简要的看一下在同一函数中指定泛型类型参数、trait bounds 和生命周期的语法！
+
+  ```rust
+  use std::fmt::Display;
+  
+  fn longest_with_an_announcement<'a, T>(
+      x: &'a str,
+      y: &'a str,
+      ann: T,
+  ) -> &'a str
+  where
+      T: Display,
+  {
+      println!("Announcement! {}", ann);
+      if x.len() > y.len() {
+          x
+      } else {
+          y
+      }
+  }
+  ```
+
+  这个是示例 10-21 中那个返回两个字符串 slice 中较长者的 `longest` 函数，不过带有一个额外的参数 `ann`。`ann` 的类型是泛型 `T`，它可以被放入任何实现了 `where` 从句中指定的 `Display` trait 的类型。这个额外的参数会使用 `{}` 打印，这也就是为什么 `Display` trait bound 是必须的。因为生命周期也是泛型，所以生命周期参数 `'a` 和泛型类型参数 `T` 都位于函数名后的同一尖括号列表中。
