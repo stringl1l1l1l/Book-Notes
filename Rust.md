@@ -2310,6 +2310,230 @@ pub mod hosting {
         println!("{:?}", scores);
     ```
 
+### 错误处理
+
+#### panic
+
+执行会造成代码 panic 的操作（比如访问超过数组结尾的内容）或者显式调用 `panic!` 宏。这两种情况都会使程序 panic。通常情况下这些 panic 会打印出一个错误信息，展开并清理栈数据，然后退出。
+
+当出现 panic 时，程序默认会开始 **展开**（*unwinding*），这意味着 Rust 会回溯栈并清理它遇到的每一个函数的数据，不过这个回溯并清理的过程有很多工作。另一种选择是直接 **终止**（*abort*），这会不清理数据就退出程序。那么程序所使用的内存需要由操作系统来清理。
+
+如果你需要项目的最终二进制文件越小越好，panic 时通过在 *Cargo.toml* 的 `[profile]` 部分增加 `panic = 'abort'`，可以由展开切换为终止。例如，如果你想要在 release 模式中 panic 时直接终止：
+
+```toml
+[profile.release]
+panic = 'abort'
+```
+
+- **使用 `panic!` 的 backtrace**
+
+  错误指向 `main.rs` 的第 4 行，这里我们尝试访问索引 99。下面的说明（note）行提醒我们可以设置 `RUST_BACKTRACE` 环境变量来得到一个 backtrace。*backtrace* 是一个执行到目前位置所有被调用的函数的列表。Rust 的 backtrace 跟其他语言中的一样：阅读 backtrace 的关键是从头开始读直到发现你编写的文件。这就是问题的发源地。这一行往上是你的代码所调用的代码；往下则是调用你的代码的代码。这些行可能包含核心 Rust 代码，标准库代码或用到的 crate 代码。
+
+  让我们将 `RUST_BACKTRACE` 环境变量设置为任何不是 0 的值来获取 backtrace 看看：
+
+  ```console
+  $ RUST_BACKTRACE=1 cargo run
+  thread 'main' panicked at 'index out of bounds: the len is 3 but the index is 99', src/main.rs:4:5
+  stack backtrace:
+     0: rust_begin_unwind
+               at /rustc/e092d0b6b43f2de967af0887873151bb1c0b18d3/library/std/src/panicking.rs:584:5
+     1: core::panicking::panic_fmt
+               at /rustc/e092d0b6b43f2de967af0887873151bb1c0b18d3/library/core/src/panicking.rs:142:14
+     2: core::panicking::panic_bounds_check
+               at /rustc/e092d0b6b43f2de967af0887873151bb1c0b18d3/library/core/src/panicking.rs:84:5
+     3: <usize as core::slice::index::SliceIndex<[T]>>::index
+               at /rustc/e092d0b6b43f2de967af0887873151bb1c0b18d3/library/core/src/slice/index.rs:242:10
+     4: core::slice::index::<impl core::ops::index::Index<I> for [T]>::index
+               at /rustc/e092d0b6b43f2de967af0887873151bb1c0b18d3/library/core/src/slice/index.rs:18:9
+     5: <alloc::vec::Vec<T,A> as core::ops::index::Index<I>>::index
+               at /rustc/e092d0b6b43f2de967af0887873151bb1c0b18d3/library/alloc/src/vec/mod.rs:2591:9
+     6: panic::main
+               at ./src/main.rs:4:5
+     7: core::ops::function::FnOnce::call_once
+               at /rustc/e092d0b6b43f2de967af0887873151bb1c0b18d3/library/core/src/ops/function.rs:248:5
+  note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
+  ```
+
+  这里有大量的输出！你实际看到的输出可能因不同的操作系统和 Rust 版本而有所不同。为了获取带有这些信息的 backtrace，必须启用 debug 标识。当不使用 `--release` 参数运行 cargo build 或 cargo run 时 debug 标识会默认启用，就像这里一样。
+
+#### Result
+
+ `Result` 枚举，它定义有如下两个成员，`Ok` 和 `Err`， `T` 代表成功时返回的 `Ok` 成员中的数据的类型，而 `E` 代表失败时返回的 `Err` 成员中的错误的类型：
+
+```rust
+enum Result<T, E> {
+    Ok(T),
+    Err(E),
+}
+```
+
+让我们调用一个返回 `Result` 的函数，因为它可能会失败，如下面所示打开一个文件：
+
+```rust
+use std::fs::File;
+
+fn main() {
+    let greeting_file_result = File::open("hello.txt");
+}
+```
+
+当 `File::open` 成功时，`greeting_file_result` 变量将会是一个包含文件句柄的 `Ok` 实例。当失败时，`greeting_file_result` 变量将会是一个包含了更多关于发生了何种错误的信息的 `Err` 实例。
+
+我们需要在下面的代码中增加根据 `File::open` 返回值进行不同处理的逻辑：
+
+```rust
+use std::fs::File;
+
+fn main() {
+    let greeting_file_result = File::open("hello.txt");
+
+    let greeting_file = match greeting_file_result {
+        Ok(file) => file,
+        Err(error) => panic!("Problem opening the file: {:?}", error),
+    };
+}
+```
+
+注意与 `Option` 枚举一样，`Result` 枚举和其成员也被导入到了 prelude 中，所以就不需要在 `match` 分支中的 `Ok` 和 `Err` 之前指定 `Result::`。这里我们告诉 Rust 当结果是 `Ok` 时，返回 `Ok` 成员中的 `file` 值，然后将这个文件句柄赋值给变量 `greeting_file`。`match` 之后，我们可以利用这个文件句柄来进行读写。`match` 的另一个分支处理从 `File::open` 得到 `Err` 值的情况。在这种情况下，我们选择调用 `panic!` 宏。
+
+- **匹配不同的错误**
+
+  上面的代码不管 `File::open` 是因为什么原因失败都会 `panic!`。我们真正希望的是对不同的错误原因采取不同的行为：如果 `File::open `因为文件不存在而失败，我们希望创建这个文件并返回新文件的句柄。如果 `File::open` 因为任何其他原因失败，例如没有打开文件的权限，我们仍然希望 `panic!`：
+
+  ```rust
+  use std::fs::File;
+  use std::io::ErrorKind;
+  
+  fn main() {
+      let greeting_file_result = File::open("hello.txt");
+  
+      let greeting_file = match greeting_file_result {
+          Ok(file) => file,
+          Err(error) => match error.kind() {
+              ErrorKind::NotFound => match File::create("hello.txt") {
+                  Ok(fc) => fc,
+                  Err(e) => panic!("Problem creating the file: {:?}", e),
+              },
+              other_error => {
+                  panic!("Problem opening the file: {:?}", other_error);
+              }
+          },
+      };
+  }
+  ```
+
+- **`unwrap` 和 `expect`**
+
+  `match` 能够胜任它的工作，不过它可能有点冗长并且不总是能很好的表明其意图。`Result<T, E>` 类型定义了很多辅助方法来处理各种情况。其中之一叫做 `unwrap`，它的实现就类似于下面的 `match` 语句。如果 `Result` 值是成员 `Ok`，`unwrap` 会返回 `Ok` 中的值。如果 `Result` 是成员 `Err`，`unwrap` 会为我们调用 `panic!`。这里是一个实践 `unwrap` 的例子：
+
+  
+  ```rust
+  fn main() {
+      let greeting_file_result = File::open("hello.txt");
+      let greeting_file = match greeting_file_result {
+          Ok(file) => file,
+          Err(error) => panic!("Problem opening the file: {:?}", error),
+      };
+  }
+  ```
+  
+  ```rust
+  fn main() {
+      let greeting_file = File::open("hello.txt").unwrap();
+  }
+  ```
+  
+  如果调用这段代码时不存在 *hello.txt* 文件，我们将会看到一个 `unwrap` 调用 `panic!` 时提供的错误信息：
+  
+  ```text
+  thread 'main' panicked at 'called `Result::unwrap()` on an `Err` value: Os {
+  code: 2, kind: NotFound, message: "No such file or directory" }',
+  src/main.rs:4:49
+  ```
+  
+  还有另一个类似于 `unwrap` 的方法它还允许我们选择 `panic!` 的错误信息：`expect`。使用 `expect` 而不是 `unwrap` 并提供一个好的错误信息可以表明你的意图并更易于追踪 panic 的根源。`expect` 的语法看起来像这样：
+  
+  ```rust
+  use std::fs::File;
+  
+  fn main() {
+      let greeting_file = File::open("hello.txt")
+          .expect("hello.txt should be included in this project");
+  }
+  ```
+  
+  `expect` 与 `unwrap` 的使用方式一样：返回文件句柄或调用 `panic!` 宏。`expect` 在调用 `panic!` 时使用的错误信息将是我们传递给 `expect` 的参数，而不像 `unwrap` 那样使用默认的 `panic!` 信息。它看起来像这样：
+  
+  ```text
+  thread 'main' panicked at 'hello.txt should be included in this project: Error
+  { repr: Os { code: 2, message: "No such file or directory" } }',
+  src/libcore/result.rs:906:4
+  ```
+
+#### 传播错误
+
+当编写一个其实先会调用一些可能会失败的操作的函数时，除了在这个函数中处理错误外，还可以选择让调用者知道这个错误并决定该如何处理。这被称为 **传播**（*propagating*）错误。
+
+例如，下面展示了一个从文件中读取用户名的函数。如果文件不存在或不能读取，这个函数会将这些错误返回给调用它的代码：
+
+```rust
+use std::fs::File;
+use std::io::{self, Read};
+
+fn read_username_from_file() -> Result<String, io::Error> {
+    let username_file_result = File::open("hello.txt");
+
+    let mut username_file = match username_file_result {
+        Ok(file) => file,
+        Err(e) => return Err(e),
+    };
+
+    let mut username = String::new();
+
+    match username_file.read_to_string(&mut username) {
+        Ok(_) => Ok(username),
+        Err(e) => Err(e),
+    }
+}
+```
+
+- **`?`运算符**
+
+  这个函数可以编写成更加简短的形式， Rust 提供了 `?` 问号运算符来表示错误传播：
+
+  ```rust
+  use std::fs::File;
+  use std::io::{self, Read};
+  
+  fn read_username_from_file() -> Result<String, io::Error> {
+      let mut username_file = File::open("hello.txt")?;
+      let mut username = String::new();
+      username_file.read_to_string(&mut username)?;
+      Ok(username)
+  }
+  ```
+
+  如果 `Result` 的值是 `Ok`，这个带`?`的表达式将会返回 `Ok` 中的值而程序将继续执行。如果值是 `Err`，`Err` 中的值将作为整个函数的返回值，就好像使用了 `return` 关键字一样，这样错误值就被传播给了调用者。
+
+  `match` 表达式与 `?` 运算符所做的有一点不同：**`?` 运算符所使用的错误值被传递给了 `from` 函数**，它定义于标准库的 `From` trait 中，其用来将错误从一种类型转换为另一种类型。当 `?` 运算符调用 `from` 函数时，收到的错误类型被转换为由当前函数返回类型所指定的错误类型。
+
+  我们甚至可以在 `?` 之后直接使用链式方法调用来进一步缩短代码：
+
+  ```rust
+  use std::fs::File;
+  use std::io::{self, Read};
+  
+  fn read_username_from_file() -> Result<String, io::Error> {
+      let mut username = String::new();
+  
+      File::open("hello.txt")?.read_to_string(&mut username)?;
+  
+      Ok(username)
+  }
+  ```
+  
+  
+
 ### 泛型、Trait和生命周期
 
 #### 泛型
@@ -2922,7 +3146,6 @@ error[E0597]: `x` does not live long enough
   
   这个字符串的文本被直接储存在程序的二进制文件中而这个文件总是可用的。因此**所有的字符串字面值都是 `'static` 的**。
   
-
 - **总结**
 
   让我们简要的看一下在同一函数中指定泛型类型参数、trait bounds 和生命周期的语法！
