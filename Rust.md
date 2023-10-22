@@ -1,15 +1,20 @@
 # Rust程序设计语言
-## cargo基础
-- **新建cargo项目**
+
+### cargo基础
+
+#### 新建cargo项目
+
 ```
-cargo new <project name>  
+cargo new <project name>  // 二进制crate
+cargo new --lib <project name> // 库crate
 ```
 该命令生成的项目目录结构：  
 src 源代码目录  
 Cargo.toml 记录项目包依赖  
 .gitignore  
 
-- **构建cargo项目**
+#### 构建cargo项目
+
 ```
 cargo build             // debug模式
 cargo build −−release   // release模式，速度更快
@@ -18,12 +23,14 @@ cargo build −−release   // release模式，速度更快
 target  目标文件目录  
 Cargo.lock 记录依赖包版本，确保可重现构建  
 
-- **构建并运行cargo项目**
+#### 构建并运行cargo项目
+
 ```
 cargo run
 ```
 
-- **检查cargo项目是否有编译错误，不生成可执行文件**
+#### 检查cargo项目是否有编译错误，不生成可执行文件
+
 ```
 cargo check
 ```
@@ -32,6 +39,8 @@ cargo check
 > 标注🧐代表相比于C/C++，rust的比较明显的不同之处。  
 >
 > 标注🤔代表我自己探索的一些坑
+>
+> 标注❗代表unsafe相关的特性
 
 ### 变量和可变性
 #### 变量
@@ -47,7 +56,7 @@ The value of x is: 6
 ```
 
 #### 常量
-rust中常量使用*const*关键字创建，必须注明值的类型，必须赋值，一定是不可变的，无法添加*mut*关键字。  
+rust中常量使用*const*关键字创建，**必须注明值的类型**，必须赋值，一定是不可变的，无法添加*mut*关键字。  
 ```rust
 const THREE_HOURS_IN_SECONDS: u32 = 60 * 60 * 3;
 ```
@@ -390,7 +399,8 @@ fn main() {
   LIFTOFF!!!
   ```
   
-- ***Range类型***
+
+##### Range类型
 
 1. **Range（..）左闭右开**
 
@@ -542,7 +552,25 @@ fn main() {
   }
   ```
 
-  
+- 方法参数
+
+  `self` 会拿走当前结构体实例(调用对象)的所有权，而 `&self` 却只会借用一个不可变引用，`&mut self` 会借用一个可变引用
+
+- for循环
+
+  ```rust
+  fn main() {
+      let v = vec![1, 2, 3];
+      let mut v1 = Vec::new();
+      
+      for item in v { // 此处发生移动
+          v1.push(item);
+      }
+      assert_eq!(v, v1);
+  }
+  ```
+
+- 
 
 #### 所有权与函数
 
@@ -779,7 +807,7 @@ fn no_dangle() -> String {
   
   这里 s 的类型是 &str：它是一个指向二进制程序特定位置的 slice。这也就是为什么字符串字面值是不可变的：&str 是一个不可变引用。
 
-- **其他类型的slice**
+##### 其他类型的slice
 
   字符串 slice，正如你想象的那样，是针对字符串的。不过也有更通用的 slice 类型。考虑一下这个数组：
 
@@ -798,7 +826,7 @@ fn no_dangle() -> String {
   ```
 
   这个 slice 的类型是 `&[i32]`。它跟字符串 slice 的工作方式一样，通过存储第一个集合元素的引用和一个集合总长度。你可以对其他所有集合使用这类 slice。第八章讲到 vector 时会详细讨论这些集合。
-  
+
   
 
 ### 结构体
@@ -1150,7 +1178,7 @@ p1.distance(&p2);
 
 第一行看起来简洁的多。这种自动引用的行为之所以有效，是因为方法有一个明确的接收者———— `self` 的类型。在给出接收者和方法名的前提下，Rust 可以明确地计算出方法是仅仅读取（`&self`），做出修改（`&mut self`）或者是获取所有权（`self`）。事实上，Rust 对方法接收者的隐式借用让所有权在实践中更友好。
 
-#### 构造函数
+#### 关联函数和构造函数
 
 所有在 `impl` 块中定义的函数被称为 **关联函数**（*associated functions*），因为它们与 `impl` 后面命名的类型相关。我们可以定义不以 `self` 为第一参数的关联函数（因此不是方法），因为它们并不作用于一个结构体的实例。我们已经使用了一个这样的函数：在 `String` 类型上定义的 `String::from` 函数。
 
@@ -1169,7 +1197,7 @@ impl Rectangle {
 }
 ```
 
-关键字 `Self` 在函数的返回类型中代指在 `impl` 关键字后出现的类型，在这里是 `Rectangle`
+关键字 `Self` 在函数的返回类型中代指在 `impl` 关键字后出现的类型，在这里是 `Rectangle`。
 
 使用结构体名和 `::` 语法来调用这个关联函数：比如 `let sq = Rectangle::square(3);`。这个函数位于结构体的命名空间中：`::` 语法用于关联函数和模块创建的命名空间。
 
@@ -1364,7 +1392,7 @@ fn value_in_cents(coin: Coin) -> u8 {
 }
 ```
 
-- **绑定值的模式**
+##### 绑定值的模式
 
   匹配分支的另一个有用的功能是可以绑定匹配的模式的部分值。这也就是如何从枚举成员中提取值的。
 
@@ -1408,7 +1436,7 @@ fn value_in_cents(coin: Coin) -> u8 {
 
   如果调用 `value_in_cents(Coin::Quarter(UsState::Alaska))`，`coin` 将是 `Coin::Quarter(UsState::Alaska)`。当将值与每个分支相比较时，没有分支会匹配，直到遇到 `Coin::Quarter(state)`。这时，`state` 绑定的将会是值 `UsState::Alaska`。接着就可以在 `println!` 表达式中使用这个绑定了，像这样就可以获取 `Coin` 枚举的 `Quarter` 成员中内部的州的值。
 
-- **匹配 `Option<T>`**
+##### 匹配 `Option<T>`
 
 ```rust
     fn plus_one(x: Option<i32>) -> Option<i32> {
@@ -1423,7 +1451,7 @@ fn value_in_cents(coin: Coin) -> u8 {
     let none = plus_one(None);  // None
 ```
 
-- **匹配是穷尽的**
+##### 匹配是穷尽的
 
   `match` 还有另一方面需要讨论：这些分支必须覆盖了所有的可能性。考虑一下 `plus_one` 函数的这个版本，它有一个 bug 并不能编译：
 
@@ -1437,7 +1465,7 @@ fn value_in_cents(coin: Coin) -> u8 {
 
 我们没有处理 `None` 的情况，所以这些代码会造成一个 bug。
 
-- **通配模式和 `_` 占位符**
+##### 通配模式和 `_` 占位符
 
   让我们看一个例子，我们希望对一些特定的值采取特殊操作，而对其他的值采取默认操作。想象我们正在玩一个游戏，如果你掷出骰子的值为 3，角色不会移动，而是会得到一顶新奇的帽子。如果你掷出了 7，你的角色将失去新奇的帽子。对于其他的数值，你的角色会在棋盘上移动相应的格子。这是一个实现了上述逻辑的 `match`，骰子的结果是硬编码而不是一个随机值，其他的逻辑部分使用了没有函数体的函数来表示，实现它们超出了本例的范围：
 
@@ -1517,7 +1545,7 @@ fn value_in_cents(coin: Coin) -> u8 {
   	}
   ```
 
-- **引用解构🤔**
+##### 引用解构🤔
 
   1. 🌟🌟 使用模式 `&mut V` 去匹配一个可变引用时，你需要格外小心，因为匹配出来的 `V` 是一个值，而不是可变引用
 
@@ -1940,7 +1968,7 @@ pub mod hosting {
 
 ####  Vector 
 
-- **创建Vector**
+##### 创建Vector
 
   创建一个新的空 vector，可以调用 `Vec::new` 函数，注意这里我们增加了一个类型注解。因为没有向这个 vector 中插入任何值，Rust 并不知道我们想要储存什么类型的元素。这是一个非常重要的点。
 
@@ -1955,7 +1983,7 @@ pub mod hosting {
    ```
 
 
-- **更新Vector**
+##### 更新Vector
 
   对于新建一个 vector 并向其增加元素，可以使用 `push` 方法：
 
@@ -1970,7 +1998,7 @@ pub mod hosting {
 
   如第三章中讨论的任何变量一样，如果想要能够改变它的值，必须使用 `mut` 关键字使其可变。放入其中的所有值都是 `i32` 类型的，而且 Rust 也根据数据做出如此判断，所以不需要 `Vec<i32>` 注解。
 
-- **读取 vector**
+##### 读取 vector
 
   有两种方法引用 vector 中储存的值：通过索引或使用 `get` 方法：
 
@@ -2005,7 +2033,7 @@ pub mod hosting {
 
   在 vector 的结尾增加新元素时，在没有足够空间将所有元素依次相邻存放的情况下，可能会要求分配新内存并将老的元素拷贝到新的空间中。这时，第一个元素的引用就指向了被释放的内存。借用规则阻止程序陷入这种状况。
 
-- **遍历 vector**
+##### 遍历 vector
 
   如果想要依次访问 vector 中的每一个元素，我们可以遍历其所有的元素而无需通过索引一次一个的访问：
 
@@ -2025,7 +2053,7 @@ pub mod hosting {
       }
   ```
 
-- **使用枚举来储存多种类型**
+##### 使用枚举来储存多种类型
 
   vector 只能储存相同类型的值。这是很不方便的；绝对会有需要储存一系列不同类型的值的用例。当需要在 vector 中储存不同类型值时，我们可以定义并使用一个枚举：
 
@@ -2043,7 +2071,7 @@ pub mod hosting {
     ];
 ```
 
-- **丢弃 vector 时也会丢弃其所有元素**
+##### 丢弃 vector 时也会丢弃其所有元素
 
   类似于任何其他的 `struct`，vector 在其离开作用域时会被释放：
 
@@ -2063,7 +2091,7 @@ pub mod hosting {
 
 在开始深入这些方面之前，我们需要讨论一下术语 **字符串** 的具体意义。Rust 的核心语言中只有一种字符串类型：字符串 slice `str`，它通常以被借用的形式出现，`&str`。第四章讲到了 **字符串 slices**：它们是一些对储存在别处的 UTF-8 编码字符串数据的引用。由于字符串字面值被储存在程序的二进制输出中，因此字符串字面值也是字符串 slices。
 
-- **创建字符串**
+##### 创建字符串
 
   事实上 `String` 被实现为一个带有一些额外保证、限制和功能的字节 vector 的封装。其中一个同样作用于 `Vec<T>` 和 `String` 函数的例子是用来新建一个实例的 `new` 函数：
 
@@ -2084,7 +2112,7 @@ pub mod hosting {
       let s = "initial contents".to_string();
   ```
 
-- **更新字符串**
+##### 更新字符串
 
   - 使用 `push_str` 和 `push` 附加字符串
 
@@ -2157,7 +2185,7 @@ pub mod hosting {
 
     这些代码也会将 `s` 设置为 “tic-tac-toe”。`format!` 与 `println!` 的工作原理相同，不过不同于将输出打印到屏幕上，它返回一个带有结果内容的 `String`。这个版本就好理解的多，宏 `format!` 生成的代码使用引用所以不会获取任何参数的所有权。
 
-- **索引字符串**
+##### 索引字符串
 
   在很多语言中，通过索引来引用字符串中的单独字符是有效且常见的操作。然而在 Rust 中，如果你尝试使用索引语法访问 `String` 的一部分，会出现一个错误：
 
@@ -2180,7 +2208,7 @@ pub mod hosting {
 
   这里，`s` 会是一个 `&str`，它包含字符串的头四个字节。早些时候，我们提到了这些字母都是两个字节长的，所以这意味着 `s` 将会是 “Зд”。如果获取 `&hello[0..1]` 会发生什么呢？答案是：Rust 在运行时会 panic，就跟访问 vector 中的无效索引时一样。
 
-- **遍历字符串**
+##### 遍历字符串
 
   操作字符串每一部分的最好的方法是明确表示需要字符还是字节。对于单独的 Unicode 标量值使用 `chars` 方法。对 “Зд” 调用 `chars` 方法会将其分开并返回两个 `char` 类型的值，接着就可以遍历其结果来访问每一个元素了：
 
@@ -2218,9 +2246,27 @@ pub mod hosting {
 
   从字符串中获取如同天城文这样的字形簇是很复杂的，所以标准库并没有提供这个功能。
 
+##### String和&str互转🤔
+
+  `String` to ``&str`：
+
+  ```rust
+      let string: String = String::new();
+      let slice: &str = string.as_str();
+  ```
+
+  `&str` to `String`：
+
+  ```rust
+      let slice: &str = "hello";
+      let string: String = slice.to_string();
+      let string: String = slice.to_owned();
+      let string: String = slice.into();
+  ```
+
 #### Hash Map
 
-- **创建Hash Map**
+##### 创建Hash Map
 
   可以使用 `new` 创建一个空的 `HashMap`，并使用 `insert` 增加元素：
 
@@ -2273,7 +2319,7 @@ pub mod hosting {
   Blue: 10
   ```
 
-- **更新Hash Map**
+##### 更新Hash Map
 
   - 覆盖一个值
 
@@ -2325,7 +2371,7 @@ pub mod hosting {
 panic = 'abort'
 ```
 
-- **使用 `panic!` 的 backtrace**
+##### 使用 `panic!` 的 backtrace
 
   错误指向 `main.rs` 的第 4 行，这里我们尝试访问索引 99。下面的说明（note）行提醒我们可以设置 `RUST_BACKTRACE` 环境变量来得到一个 backtrace。*backtrace* 是一个执行到目前位置所有被调用的函数的列表。Rust 的 backtrace 跟其他语言中的一样：阅读 backtrace 的关键是从头开始读直到发现你编写的文件。这就是问题的发源地。这一行往上是你的代码所调用的代码；往下则是调用你的代码的代码。这些行可能包含核心 Rust 代码，标准库代码或用到的 crate 代码。
 
@@ -2396,7 +2442,7 @@ fn main() {
 
 注意与 `Option` 枚举一样，`Result` 枚举和其成员也被导入到了 prelude 中，所以就不需要在 `match` 分支中的 `Ok` 和 `Err` 之前指定 `Result::`。这里我们告诉 Rust 当结果是 `Ok` 时，返回 `Ok` 成员中的 `file` 值，然后将这个文件句柄赋值给变量 `greeting_file`。`match` 之后，我们可以利用这个文件句柄来进行读写。`match` 的另一个分支处理从 `File::open` 得到 `Err` 值的情况。在这种情况下，我们选择调用 `panic!` 宏。
 
-- **匹配不同的错误**
+##### 匹配不同的错误
 
   上面的代码不管 `File::open` 是因为什么原因失败都会 `panic!`。我们真正希望的是对不同的错误原因采取不同的行为：如果 `File::open `因为文件不存在而失败，我们希望创建这个文件并返回新文件的句柄。如果 `File::open` 因为任何其他原因失败，例如没有打开文件的权限，我们仍然希望 `panic!`：
 
@@ -2422,11 +2468,11 @@ fn main() {
   }
   ```
 
-- **`unwrap` 和 `expect`**
+##### `unwrap` 和 `expect`
 
   `match` 能够胜任它的工作，不过它可能有点冗长并且不总是能很好的表明其意图。`Result<T, E>` 类型定义了很多辅助方法来处理各种情况。其中之一叫做 `unwrap`，它的实现就类似于下面的 `match` 语句。如果 `Result` 值是成员 `Ok`，`unwrap` 会返回 `Ok` 中的值。如果 `Result` 是成员 `Err`，`unwrap` 会为我们调用 `panic!`。这里是一个实践 `unwrap` 的例子：
 
-  
+
   ```rust
   fn main() {
       let greeting_file_result = File::open("hello.txt");
@@ -2436,23 +2482,23 @@ fn main() {
       };
   }
   ```
-  
+
   ```rust
   fn main() {
       let greeting_file = File::open("hello.txt").unwrap();
   }
   ```
-  
+
   如果调用这段代码时不存在 *hello.txt* 文件，我们将会看到一个 `unwrap` 调用 `panic!` 时提供的错误信息：
-  
+
   ```text
   thread 'main' panicked at 'called `Result::unwrap()` on an `Err` value: Os {
   code: 2, kind: NotFound, message: "No such file or directory" }',
   src/main.rs:4:49
   ```
-  
+
   还有另一个类似于 `unwrap` 的方法它还允许我们选择 `panic!` 的错误信息：`expect`。使用 `expect` 而不是 `unwrap` 并提供一个好的错误信息可以表明你的意图并更易于追踪 panic 的根源。`expect` 的语法看起来像这样：
-  
+
   ```rust
   use std::fs::File;
   
@@ -2461,9 +2507,9 @@ fn main() {
           .expect("hello.txt should be included in this project");
   }
   ```
-  
+
   `expect` 与 `unwrap` 的使用方式一样：返回文件句柄或调用 `panic!` 宏。`expect` 在调用 `panic!` 时使用的错误信息将是我们传递给 `expect` 的参数，而不像 `unwrap` 那样使用默认的 `panic!` 信息。它看起来像这样：
-  
+
   ```text
   thread 'main' panicked at 'hello.txt should be included in this project: Error
   { repr: Os { code: 2, message: "No such file or directory" } }',
@@ -2497,7 +2543,7 @@ fn read_username_from_file() -> Result<String, io::Error> {
 }
 ```
 
-- **`?`运算符**
+##### `?`运算符
 
   这个函数可以编写成更加简短的形式， Rust 提供了 `?` 问号运算符来表示错误传播：
 
@@ -2531,14 +2577,14 @@ fn read_username_from_file() -> Result<String, io::Error> {
       Ok(username)
   }
   ```
-  
+
   
 
 ### 泛型、Trait和生命周期
 
 #### 泛型
 
-- **在函数中使用泛型**
+##### 在函数中使用泛型
 
   函数 `largest` 有泛型类型 `T`。它有个参数 `list`，其类型是元素为 `T` 的 slice。`largest` 函数会返回一个与 `T` 相同类型的引用。
 
@@ -2588,7 +2634,7 @@ fn read_username_from_file() -> Result<String, io::Error> {
 
   这个错误表明 `largest` 的函数体不能适用于 `T` 的所有可能的类型。因为在函数体需要比较 `T` 类型的值，不过它只能用于我们知道如何排序的类型。为了开启比较功能，标准库中定义的 `std::cmp::PartialOrd` trait 可以实现类型的比较功能。依照帮助说明中的建议，我们限制 `T` 只对实现了 `PartialOrd` 的类型有效后代码就可以编译了，因为标准库为 `i32` 和 `char` 实现了 `PartialOrd`。
 
-- **在结构体中使用泛型**
+##### 在结构体中使用泛型
 
   ```rust
   struct Point<T> {
@@ -2601,11 +2647,11 @@ fn read_username_from_file() -> Result<String, io::Error> {
       let float = Point { x: 1.0, y: 4.0 };
   }
   ```
-  
+
   注意 `Point<T>` 的定义中只使用了一个泛型类型，这个定义表明结构体 `Point<T>` 对于一些类型 `T` 是泛型的，而且字段 `x` 和 `y` 都是相同类型的，无论它具体是何类型。
-  
+
   如果想要定义一个 `x` 和 `y` 可以有不同类型且仍然是泛型的 `Point` 结构体，我们可以使用多个泛型类型参数。在示例 10-8 中，我们修改 `Point` 的定义为拥有两个泛型类型 `T` 和 `U`。其中字段 `x` 是 `T` 类型的，而字段 `y` 是 `U` 类型的：
-  
+
   ```rust
   struct Point<T, U> {
       x: T,
@@ -2619,7 +2665,7 @@ fn read_username_from_file() -> Result<String, io::Error> {
   }
   ```
 
-- **在枚举中使用泛型**
+##### 在枚举中使用泛型
 
   和结构体类似，枚举也可以在成员中存放泛型数据类型。第六章我们曾用过标准库提供的 `Option<T>` 枚举，这里再回顾一下：
 
@@ -2645,7 +2691,7 @@ fn read_username_from_file() -> Result<String, io::Error> {
 
   当你意识到代码中定义了多个结构体或枚举，它们不一样的地方只是其中的值的类型的时候，不妨通过泛型类型来避免重复。
 
-- **在方法中使用泛型**
+##### 在方法中使用泛型
 
   在为结构体和枚举实现方法时，一样也可以用泛型，注意必须在 `impl` 后面声明 `T`，这样就可以在 `Point<T>` 上实现的方法中使用 `T` 了。：
 
@@ -2678,7 +2724,36 @@ fn read_username_from_file() -> Result<String, io::Error> {
   }
   ```
 
-- **泛型代码的性能**
+  结构体定义中的泛型类型参数并不总是与结构体方法签名中使用的泛型是同一类型。这个方法用 `self` 的 `Point` 类型的 `x` 值（类型 `X1`）和参数的 `Point` 类型的 `y` 值（类型 `Y2`）来创建一个新 `Point` 类型的实例：
+
+  ```rust
+  struct Point<X1, Y1> {
+      x: X1,
+      y: Y1,
+  }
+  
+  impl<X1, Y1> Point<X1, Y1> {
+      fn mixup<X2, Y2>(self, other: Point<X2, Y2>) -> Point<X1, Y2> {
+          Point {
+              x: self.x,
+              y: other.y,
+          }
+      }
+  }
+  
+  fn main() {
+      let p1 = Point { x: 5, y: 10.4 };
+      let p2 = Point { x: "Hello", y: 'c' };
+  
+      let p3 = p1.mixup(p2);
+  
+      println!("p3.x = {}, p3.y = {}", p3.x, p3.y);
+  }
+  ```
+
+  示例 10-11：方法使用了与结构体定义中不同类型的泛型
+
+##### 泛型代码的性能
 
   泛型并不会使程序比具体类型运行得慢。Rust 通过在编译时进行泛型代码的 **单态化**（*monomorphization*）来保证效率。单态化是一个通过填充编译时使用的具体类型，将通用代码转换为特定代码的过程。
 
@@ -2709,11 +2784,11 @@ fn read_username_from_file() -> Result<String, io::Error> {
       let float = Option_f64::Some(5.0);
   }
   ```
-  
+
   泛型 `Option<T>` 被编译器替换为了具体的定义。因为 Rust 会将每种情况下的泛型代码编译为具体类型，使用泛型没有运行时开销。当代码运行时，它的执行效率就跟好像手写每个具体定义的重复代码一样。这个单态化过程正是 Rust 泛型在运行时极其高效的原因。
 
 #### Trait
-- **定义trait**
+##### 定义trait
   一个类型的行为由其可供调用的方法构成。如果可以对不同类型调用相同的方法的话，这些类型就可以共享相同的行为了。trait 定义是一种将方法签名组合起来的方法，目的是定义一个实现某些目的所必需的行为的集合。
 
   我们想要创建一个名为 `aggregator` 的多媒体聚合库用来显示可能储存在 `NewsArticle` 或 `Tweet` 实例中的数据摘要。为了实现功能，每个结构体都要能够获取摘要，这样的话就可以调用实例的 `summarize` 方法来请求摘要。
@@ -2724,7 +2799,7 @@ fn read_username_from_file() -> Result<String, io::Error> {
   }
   ```
 
-- **实现trait**
+##### 实现trait
 
   现在我们定义了 `Summary` trait 的签名，接着就可以在多媒体聚合库中实现这个类型了。示例中展示了 `NewsArticle` 结构体上 `Summary` trait 的一个实现，它使用标题、作者和创建的位置作为 `summarize` 的返回值。对于 `Tweet` 结构体，我们选择将 `summarize` 定义为用户名后跟推文的全部文本作为返回值。
 
@@ -2781,7 +2856,7 @@ fn read_username_from_file() -> Result<String, io::Error> {
 
   不能为外部类型实现外部 trait。例如，不能在 `aggregator` crate 中为 `Vec<T>` 实现 `Display` trait。这是因为 `Display` 和 `Vec<T>` 都定义于标准库中，它们并不位于 `aggregator` crate 本地作用域中。这个限制是被称为 **相干性**（*coherence*）的程序属性的一部分，或者更具体的说是 **孤儿规则**（*orphan rule*），其得名于不存在父类型。这条规则确保了其他人编写的代码不会破坏你代码，反之亦然。没有这条规则的话，两个 crate 可以分别对相同类型实现相同的 trait，而 Rust 将无从得知应该使用哪一个实现。
 
-- **trait默认实现**
+##### trait默认实现
 
   示例中我们为 `Summary` trait 的 `summarize` 方法指定一个默认的字符串值，而不是只定义方法签名：
 
@@ -2792,7 +2867,7 @@ pub trait Summary {
       }
   }
   ```
-  
+
   如果想要对 `NewsArticle` 实例使用这个默认实现，可以通过 `impl Summary for NewsArticle {}` 指定一个空的 `impl` 块。
 
   **默认实现允许调用相同 trait 中的其他方法，哪怕这些方法没有默认实现。**如此，trait 可以提供很多有用的功能而只需要实现指定一小部分内容。例如，我们可以定义 `Summary` trait，使其具有一个需要实现的 `summarize_author` 方法，然后定义一个 `summarize` 方法，此方法的默认实现调用 `summarize_author` 方法：
@@ -2806,7 +2881,7 @@ pub trait Summary {
       }
   }
   ```
-  
+
   为了使用这个版本的 `Summary`，只需在实现 trait 时定义 `summarize_author` 即可：
 
   ```rust
@@ -2816,7 +2891,7 @@ impl Summary for Tweet {
       }
   }
   ```
-  
+
   一旦定义了 `summarize_author`，我们就可以对 `Tweet` 结构体的实例调用 `summarize` 了，而 `summarize` 的默认实现会调用我们提供的 `summarize_author` 定义。因为实现了 `summarize_author`，`Summary` trait 就提供了 `summarize` 方法的功能，且无需编写更多的代码。
 
   ```rust
@@ -2831,7 +2906,7 @@ impl Summary for Tweet {
   
       println!("1 new tweet: {}", tweet.summarize());
   ```
-  
+
   这会打印出 `1 new tweet: (Read more from @horse_ebooks...)`。
 
 -  **`impl Trait` 语法**
@@ -2997,7 +3072,7 @@ error[E0597]: `x` does not live long enough
 
   这里 `x` 拥有生命周期 `'b`，比 `'a` 要大。这就意味着 `r` 可以引用 `x`：Rust 知道 `r` 中的引用在 `x` 有效的时候也总是有效的，因为**数据比引用有着更长的生命周期**。
 
-- **函数中的泛型生命周期**
+##### 函数中的泛型生命周期
 
   我们实现一个 `longest` 函数，它返回两个字符串 slice 中较长者，现在还不能编译：
 
@@ -3030,7 +3105,7 @@ error[E0597]: `x` does not live long enough
 
   提示文本揭示了返回值需要一个泛型生命周期参数，因为 Rust 并不知道将要返回的引用是指向 `x` 或 `y`。借用检查器自身同样也无法确定，因为它不知道 `x` 和 `y` 的生命周期是如何与返回值的生命周期相关联的。为了修复这个错误，我们将增加泛型生命周期参数来定义引用间的关系以便借用检查器可以进行分析。
 
-- **生命周期注解语法**
+##### 生命周期注解语法
 
   生命周期注解并不改变任何引用的生命周期的长短。相反它们描述了多个引用生命周期相互的关系，而不影响其生命周期。与当函数签名中指定了泛型类型参数后就可以接受任何类型一样，当指定了泛型生命周期后函数也能接受任何生命周期的引用。
 
@@ -3086,7 +3161,7 @@ error[E0597]: `x` does not live long enough
   }
   ```
 
-- **结构体定义中的生命周期注解**
+##### 结构体定义中的生命周期注解
 
   目前为止，我们定义的结构体全都包含拥有所有权的类型。也可以定义包含引用的结构体，不过这需要为结构体定义中的每一个引用添加生命周期注解。下面有一个存放了一个字符串 slice 的结构体 `ImportantExcerpt`：
 
@@ -3108,7 +3183,7 @@ error[E0597]: `x` does not live long enough
 
   这里的 `main` 函数创建了一个 `ImportantExcerpt` 的实例，它存放了变量 `novel` 所拥有的 `String` 的第一个句子的引用。`novel` 的数据在 `ImportantExcerpt` 实例创建之前就存在。另外，直到 `ImportantExcerpt` 离开作用域之后 `novel` 都不会离开作用域，所以 `ImportantExcerpt` 实例中的引用是有效的。
 
-- **生命周期省略（Lifetime Elision）**
+##### 生命周期省略（Lifetime Elision）
 
   函数或方法的参数的生命周期被称为 **输入生命周期**（*input lifetimes*），而返回值的生命周期被称为 **输出生命周期**（*output lifetimes*）。编译器采用三条规则来判断引用何时不需要明确的注解。第一条规则适用于输入生命周期，后两条规则适用于输出生命周期。如果编译器检查完这三条规则后仍然存在没有计算出生命周期的引用，编译器将会停止并生成错误。这些规则适用于 `fn` 定义，以及 `impl` 块。
 
@@ -3118,14 +3193,14 @@ error[E0597]: `x` does not live long enough
 
   3. 第三条规则是如果方法有多个输入生命周期参数并且其中一个参数是 `&self` 或 `&mut self`，说明是个对象的方法 ，那么所有输出生命周期参数被赋予 `self` 的生命周期。第三条规则使得方法更容易读写，因为只需更少的符号。
 
-- **方法中定义的生命周期注解**
+##### 方法中定义的生命周期注解
 
   实现方法时结构体字段的生命周期必须总是在 `impl` 关键字之后声明并在结构体名称之后被使用，因为这些生命周期是结构体类型的一部分。
 
   `impl` 块里的方法签名中，引用可能与结构体字段中的引用相关联，也可能是独立的。另外，生命周期省略规则也经常让我们无需在方法签名中使用生命周期注解。让我们看看一些使用示例 10-24 中定义的结构体 `ImportantExcerpt` 的例子。
-  
+
   首先，这里有一个方法 `level`。其唯一的参数是 `self` 的引用，而且返回值只是一个 `i32`，并不引用任何值：
-  
+
   ```rust
   impl<'a> ImportantExcerpt<'a> {
       fn level(&self) -> i32 {
@@ -3133,20 +3208,20 @@ error[E0597]: `x` does not live long enough
       }
   }
   ```
-  
+
   `impl` 之后和类型名称之后的生命周期参数是必要的，不过因为第一条生命周期规则我们并不必须标注 `self` 引用的生命周期。
-  
-- **静态生命周期**
-  
+
+##### 静态生命周期
+
   这里有一种特殊的生命周期值得讨论：`'static`，其生命周期**能够**存活于整个程序期间。所有的字符串字面值都拥有 `'static` 生命周期，我们也可以选择像下面这样标注出来：
-  
+
   ```rust
   let s: &'static str = "I have a static lifetime.";
   ```
-  
+
   这个字符串的文本被直接储存在程序的二进制文件中而这个文件总是可用的。因此**所有的字符串字面值都是 `'static` 的**。
-  
-- **总结**
+
+##### 总结
 
   让我们简要的看一下在同一函数中指定泛型类型参数、trait bounds 和生命周期的语法！
 
@@ -3171,3 +3246,766 @@ error[E0597]: `x` does not live long enough
   ```
 
   这个是示例 10-21 中那个返回两个字符串 slice 中较长者的 `longest` 函数，不过带有一个额外的参数 `ann`。`ann` 的类型是泛型 `T`，它可以被放入任何实现了 `where` 从句中指定的 `Display` trait 的类型。这个额外的参数会使用 `{}` 打印，这也就是为什么 `Display` trait bound 是必须的。因为生命周期也是泛型，所以生命周期参数 `'a` 和泛型类型参数 `T` 都位于函数名后的同一尖括号列表中。
+
+### 智能指针
+
+**智能指针**（*smart pointers*）是一类数据结构，它们的表现类似指针，但是也拥有额外的元数据和功能。在 Rust 中因为引用和借用，普通引用和智能指针的一个额外的区别是引用是一类只借用数据的指针；相反，**在大部分情况下，智能指针拥有它们指向的数据。**
+
+- `Rc<T>` 允许相同数据有多个所有者；`Box<T>` 和 `RefCell<T>` 有单一所有者。
+- `Box<T>` 允许在编译时执行不可变或可变借用检查；`Rc<T>`仅允许在编译时执行不可变借用检查；`RefCell<T>` 允许在运行时执行不可变或可变借用检查。
+- 因为 `RefCell<T>` 允许在运行时执行可变借用检查，所以我们可以在即便 `RefCell<T>` 自身是不可变的情况下修改其内部的值。
+
+#### `Box<T>`
+
+最简单直接的智能指针是 *box*，其类型是 `Box<T>`。box 允许你将一个值放在堆上而不是栈上，留在栈上的则是指向堆数据的指针。`Box<T>` 类型是一个智能指针，因为它实现了 `Deref` trait，它允许 `Box<T>` 值被当作引用对待。当 `Box<T>` 值离开作用域时，由于 `Box<T>` 类型 `Drop` trait 的实现，box 所指向的堆数据也会被清除。
+
+**box 只提供了间接存储和堆分配**，并没有任何其他特殊的功能。box 没有性能损失，它多用于如下场景：
+
+- 当有一个在编译时未知大小的类型，而又想要在需要确切大小的上下文中使用这个类型值的时候
+- 当有大量数据并希望在确保数据不被拷贝的情况下转移所有权的时候
+- 当希望拥有一个值并只关心它的类型是否实现了特定 trait 而不是其具体类型的时候
+
+##### 使用Box创建递归类型
+
+**递归类型**（*recursive type*）的值可以拥有另一个同类型的值作为其自身的一部分。但是这会产生一个问题，因为 Rust 需要在编译时知道类型占用多少空间。递归类型的值嵌套理论上可以无限地进行下去，所以 Rust 不知道递归类型需要多少空间。因为 box 有一个已知的大小，所以通过在循环类型定义中插入 box，就可以创建递归类型了。
+
+*cons list* 是一个来源于 Lisp 编程语言及其方言的数据结构，它由嵌套的列表组成。例如这里有一个包含列表 1，2，3 的 cons list 的伪代码表示，其每一个列表在一个括号中：
+
+```text
+(1, (2, (3, Nil)))
+```
+
+cons list 的每一项都包含两个元素：当前项的值和下一项。其最后一项值包含一个叫做 `Nil` 的值且没有下一项。cons list 通过递归调用 `cons` 函数产生。代表递归的终止条件（base case）的规范名称是 `Nil`，它宣布列表的终止。
+
+尝试定义一个代表 `i32` 值的 cons list 数据结构的枚举：
+
+```rust
+enum List {
+    Cons(i32, List),
+    Nil,
+}
+```
+
+使用这个 cons list 来储存列表 `1, 2, 3` 将看起来如下所示：
+
+```rust
+use crate::List::{Cons, Nil};
+
+fn main() {
+    let list = Cons(1, Cons(2, Cons(3, Nil)));
+}
+```
+
+但如果尝试编译上面的代码，会得到如下面所示的错误：
+
+```console
+error[E0072]: recursive type `List` has infinite size
+ --> src/main.rs:1:1
+  |
+1 | enum List {
+  | ^^^^^^^^^ recursive type has infinite size
+2 |     Cons(i32, List),
+  |               ---- recursive without indirection
+  |
+help: insert some indirection (e.g., a `Box`, `Rc`, or `&`) to make `List` representable
+  |
+2 |     Cons(i32, Box<List>),
+  |               ++++    +
+```
+
+这个错误表明这个类型 “有无限的大小”。其原因是 `List` 的一个成员被定义为是递归的：它直接存放了另一个相同类型的值。这意味着 Rust 无法计算为了存放 `List` 值到底需要多少空间。
+
+我们可以使用`Box<T>`修改代码，这是可以编译的：
+
+```rust
+enum List {
+    Cons(i32, Box<List>),
+    Nil,
+}
+
+use crate::List::{Cons, Nil};
+
+fn main() {
+    let list = Cons(1, Box::new(Cons(2, Box::new(Cons(3, Box::new(Nil))))));
+}
+```
+
+#####  `Deref` trait
+
+实现 `Deref` trait 允许我们重载 **解引用运算符**（*dereference operator*）`*`。通过这种方式实现 `Deref` trait 的智能指针可以被当作常规引用来对待，可以编写操作引用的代码并用于智能指针。
+
+```rust
+use std::ops::Deref;
+
+impl<T> Deref for MyBox<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+```
+
+`type Target = T;` 语法定义了用于此 trait 的关联类型。关联类型是一个稍有不同的定义泛型参数的方式，现在还无需过多的担心它；第十九章会详细介绍。
+
+`deref` 方法体中写入了 `&self.0`，这样 `deref` 返回了我希望通过 `*` 运算符访问的值的引用。没有 `Deref` trait 的话，编译器只会解引用 `&` 引用类型。`deref` 方法向编译器提供了获取任何实现了 `Deref` trait 的类型的值，并且调用这个类型的 `deref` 方法来获取一个它知道如何解引用的 `&` 引用的能力。
+
+当我们在示例中输入 `*y` 时，Rust 事实上在底层运行了如下代码：
+
+```rust
+*(y.deref())
+```
+
+Rust 将 `*` 运算符替换为先调用 `deref` 方法再进行普通解引用的操作，如此我们便不用担心是否还需手动调用 `deref` 方法了。Rust 的这个特性可以让我们写出行为一致的代码，无论是面对的是常规引用还是实现了 `Deref` 的类型。
+
+##### 隐式 Deref 强制转换
+
+**Deref 强制转换**（*deref coercions*）将实现了 `Deref` trait 的类型的引用转换为另一种类型的引用。例如，可以将 `&String` 转换为 `&str`，因为 `String` 实现了 `Deref` trait 因此可以返回 `&str`。
+
+如果 Rust 没有实现 Deref 强制转换，为了使用 `&MyBox<String>` 类型的值调用 `hello`，则必须编写如下的代码：
+
+```rust
+fn hello(name: &str) {
+    println!("Hello, {name}!");
+}
+
+fn main() {
+    let m = MyBox::new(String::from("Rust"));
+    hello(&(*m)[..]);
+}
+```
+
+当所涉及到的类型定义了 `Deref` trait，Rust 会分析这些类型并使用任意多次 `Deref::deref` 调用以获得匹配参数的类型。这些解析都发生在编译时，所以利用 Deref 强制转换并没有运行时损耗！
+
+
+
+类似于如何使用 `Deref` trait 重载不可变引用的 `*` 运算符，Rust 提供了 `DerefMut` trait 用于重载可变引用的 `*` 运算符。
+
+Rust 在发现类型和 trait 实现满足三种情况时会进行 Deref 强制转换：
+
+- 当 `T: Deref<Target=U>` 时从 `&T` 到 `&U`。
+- 当 `T: DerefMut<Target=U>` 时从 `&mut T` 到 `&mut U`。
+- 当 `T: Deref<Target=U>` 时从 `&mut T` 到 `&U`。
+
+头两个情况除了第二种实现了可变性之外是相同的：第一种情况表明如果有一个 `&T`，而 `T` 实现了返回 `U` 类型的 `Deref`，则可以直接得到 `&U`。第二种情况表明对于可变引用也有着相同的行为。
+
+第三个情况有些微妙：**Rust 也会将可变引用强转为不可变引用，但是反之是不可能的：不可变引用永远也不能强转为可变引用。**因为根据借用规则，如果有一个可变引用，其必须是这些数据的唯一引用。将一个可变引用转换为不可变引用永远也不会打破借用规则。将不可变引用转换为可变引用则需要初始的不可变引用是数据唯一的不可变引用，而借用规则无法保证这一点。因此，Rust 无法假设将不可变引用转换为可变引用是可能的。
+
+#### `Rc<T>` 引用计数智能指针
+
+为了启用多所有权需要显式地使用 Rust 类型 `Rc<T>`，其为 **引用计数**（*reference counting*）的缩写。引用计数意味着记录一个值的引用数量来知晓这个值是否仍在被使用。如果某个值有零个引用，就代表没有任何有效引用并可以被清理。
+
+`Rc<T>` 用于当我们希望在堆上分配一些内存供程序的多个部分读取，而且无法在编译时确定程序的哪一部分会最后结束使用它的时候。如果确实知道哪部分是最后一个结束使用的话，就可以令其成为数据的所有者，正常的所有权规则就可以在编译时生效。注意 `Rc<T>` 只能用于单线程场景。
+
+让我们回到使用 `Box<T>` 定义 cons list 的例子。这一次，我们希望创建两个共享第三个列表所有权的列表，其概念将会看起来如图所示：
+
+![Two lists that share ownership of a third list](https://kaisery.github.io/trpl-zh-cn/img/trpl15-03.svg)
+
+尝试使用 `Box<T>` 定义的 `List` 实现并不能工作：
+
+```rust
+enum List {
+    Cons(i32, Box<List>),
+    Nil,
+}
+
+use crate::List::{Cons, Nil};
+
+fn main() {
+    let a = Cons(5, Box::new(Cons(10, Box::new(Nil))));
+    let b = Cons(3, Box::new(a));
+    let c = Cons(4, Box::new(a));
+}
+```
+
+编译会得出如下错误，Cons 成员拥有其储存的数据，所以当创建 b 列表时，a 被移动进了 b，这样 b 就拥有了 a。接着当再次尝试使用 a 创建 c 时，这不被允许，因为 a 的所有权已经被移动：
+
+```console
+error[E0382]: use of moved value: `a`
+  --> src/main.rs:11:30
+   |
+9  |     let a = Cons(5, Box::new(Cons(10, Box::new(Nil))));
+   |         - move occurs because `a` has type `List`, which does not implement the `Copy` trait
+10 |     let b = Cons(3, Box::new(a));
+   |                              - value moved here
+11 |     let c = Cons(4, Box::new(a));
+   |                              ^ value used here after move
+
+```
+
+我们修改 `List` 的定义为使用 `Rc<T>` 代替 `Box<T>`，现在每一个 `Cons` 变量都包含一个值和一个指向 `List` 的 `Rc<T>`。当创建 `b` 时，不同于获取 `a` 的所有权，这里会克隆 `a` 所包含的 `Rc<List>`，这会将引用计数从 1 增加到 2 并允许 `a` 和 `b` 共享 `Rc<List>` 中数据的所有权。创建 `c` 时也会克隆 `a`，这会将引用计数从 2 增加为 3。每次调用 `Rc::clone`，`Rc<List>` 中数据的引用计数都会增加，直到有零个引用之前其数据都不会被清理。`Rc::clone` 的实现并不像大部分类型的 `clone` 实现那样对所有数据进行深拷贝， 只会增加引用计数，这并不会花费多少时间。
+
+```rust
+enum List {
+    Cons(i32, Rc<List>),
+    Nil,
+}
+
+use crate::List::{Cons, Nil};
+use std::rc::Rc;
+
+fn main() {
+    let a = Rc::new(Cons(5, Rc::new(Cons(10, Rc::new(Nil)))));
+    let b = Cons(3, Rc::clone(&a));
+    let c = Cons(4, Rc::clone(&a));
+}
+```
+
+通过不可变引用， `Rc<T>` 允许在程序的多个部分之间**只读地**共享数据。如果 `Rc<T>` 也允许多个可变引用，则会违反第四章讨论的借用规则之一：相同位置的多个可变借用可能造成数据竞争和不一致。不过可以修改数据是非常有用的！在下一部分，我们将讨论内部可变性模式和 `RefCell<T>` 类型，它可以与 `Rc<T>` 结合使用来处理不可变性的限制。
+
+#### `RefCell<T>` 和内部可变性模式 ❗
+
+**内部可变性**（*Interior mutability*）是 Rust 中的一个设计模式，它允许你即使在有不可变引用时也可以改变数据，这通常是借用规则所不允许的。为了改变数据，该模式在数据结构中使用 `unsafe` 代码来模糊 Rust 通常的可变性和借用规则。不安全代码表明我们在手动检查这些规则而不是让编译器替我们检查。
+
+不同于 `Rc<T>`，`RefCell<T>` 代表其数据的唯一的所有权。那么是什么让 `RefCell<T>` 不同于像 `Box<T>` 这样的类型呢？回忆一下第四章所学的借用规则：
+
+1. 在任意给定时刻，只能拥有一个可变引用或任意数量的不可变引用 **之一**（而不是两者）。
+2. 引用必须总是有效的。
+
+对于引用和 `Box<T>`，借用规则的不可变性作用于编译时。对于 `RefCell<T>`，这些不可变性作用于 **运行时**。对于引用，如果违反这些规则，会得到一个编译错误。而对于 `RefCell<T>`，如果违反这些规则程序会 panic 并退出。
+
+下面的代码定义了一个 `MockMessenger` 结构体，其 `sent_messages` 字段为一个 `String` 值的 `Vec` 用来记录被告知发送的消息。我们还定义了一个关联函数 `new` 以便于新建从空消息列表开始的 `MockMessenger` 值。接着为 `MockMessenger` 实现 `Messenger` trait 这样就可以为 `LimitTracker` 提供一个 `MockMessenger`。在 `send` 方法的定义中，获取传入的消息作为参数并储存在 `MockMessenger` 的 `sent_messages` 列表中。
+
+在测试中，我们测试了当 `LimitTracker` 被告知将 `value` 设置为超过 `max` 值 75% 的某个值。首先新建一个 `MockMessenger`，其从空消息列表开始。接着新建一个 `LimitTracker` 并传递新建 `MockMessenger` 的引用和 `max` 值 100。我们使用值 80 调用 `LimitTracker` 的 `set_value` 方法，这超过了 100 的 75%。接着断言 `MockMessenger` 中记录的消息列表应该有一条消息：
+
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct MockMessenger {
+        sent_messages: Vec<String>,
+    }
+
+    impl MockMessenger {
+        fn new() -> MockMessenger {
+            MockMessenger {
+                sent_messages: vec![],
+            }
+        }
+    }
+
+    impl Messenger for MockMessenger {
+        fn send(&self, message: &str) {
+            self.sent_messages.push(String::from(message));
+        }
+    }
+
+    #[test]
+    fn it_sends_an_over_75_percent_warning_message() {
+        let mock_messenger = MockMessenger::new();
+        let mut limit_tracker = LimitTracker::new(&mock_messenger, 100);
+
+        limit_tracker.set_value(80);
+
+        assert_eq!(mock_messenger.sent_messages.len(), 1);
+    }
+}
+```
+
+然而，这个测试是有问题的：
+
+```console
+error[E0596]: cannot borrow `self.sent_messages` as mutable, as it is behind a `&` reference
+  --> src/lib.rs:58:13
+   |
+2  |     fn send(&self, msg: &str);
+   |             ----- help: consider changing that to be a mutable reference: `&mut self`
+...
+58 |             self.sent_messages.push(String::from(message));
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `self` is a `&` reference, so the data it refers to cannot be borrowed as mutable
+```
+
+不能修改 `MockMessenger` 来记录消息，因为 `send` 方法获取了 `self` 的不可变引用。我们也不能参考错误文本的建议使用 `&mut self` 替代，因为这样 `send` 的签名就不符合 `Messenger` trait 定义中的签名了。
+
+这正是内部可变性的用武之地！我们将通过 `RefCell` 来储存 `sent_messages`，然后 `send` 将能够修改 `sent_messages` 并储存消息：
+
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::cell::RefCell;
+
+    struct MockMessenger {
+        sent_messages: RefCell<Vec<String>>,
+    }
+
+    impl MockMessenger {
+        fn new() -> MockMessenger {
+            MockMessenger {
+                sent_messages: RefCell::new(vec![]),
+            }
+        }
+    }
+
+    impl Messenger for MockMessenger {
+        fn send(&self, message: &str) {
+            self.sent_messages.borrow_mut().push(String::from(message));
+        }
+    }
+
+    #[test]
+    fn it_sends_an_over_75_percent_warning_message() {
+        // --snip--
+
+        assert_eq!(mock_messenger.sent_messages.borrow().len(), 1);
+    }
+}
+```
+
+现在 `sent_messages` 字段的类型是 `RefCell<Vec<String>>` 而不是 `Vec<String>`。在 `new` 函数中新建了一个 `RefCell<Vec<String>>` 实例替代空 vector。
+
+对于 `send` 方法的实现，第一个参数仍为 `self` 的不可变借用，这是符合方法定义的。我们调用 `self.sent_messages` 中 `RefCell` 的 `borrow_mut` 方法来获取 `RefCell` 中值的可变引用，这是一个 vector。接着可以对 vector 的可变引用调用 `push` 以便记录测试过程中看到的消息。
+
+最后必须做出的修改位于断言中：为了看到其内部 vector 中有多少个项，需要调用 `RefCell` 的 `borrow` 以获取 vector 的不可变引用。
+
+##### `RefCell` 在运行时记录借用
+
+现在我们见识了如何使用 `RefCell<T>`，让我们研究一下它怎样工作的！
+
+当创建不可变和可变引用时，我们分别使用 `&` 和 `&mut` 语法。对于 `RefCell<T>` 来说，则是 `borrow` 和 `borrow_mut` 方法，这属于 `RefCell<T>` 安全 API 的一部分。`borrow` 方法返回 `Ref<T>` 类型的智能指针，`borrow_mut` 方法返回 `RefMut<T>` 类型的智能指针。这两个类型都实现了 `Deref`，所以可以当作常规引用对待。
+
+如果我们尝试违反这些规则，相比引用时的编译时错误，`RefCell<T>` 的实现会在运行时出现 panic。这里我们故意尝试在相同作用域创建两个可变借用以便演示 `RefCell<T>` 不允许我们在运行时这么做：
+
+```rust
+    impl Messenger for MockMessenger {
+        fn send(&self, message: &str) {
+            let mut one_borrow = self.sent_messages.borrow_mut();
+            let mut two_borrow = self.sent_messages.borrow_mut();
+
+            one_borrow.push(String::from(message));
+            two_borrow.push(String::from(message));
+        }
+    }
+____________________________________________________________________
+panic !
+```
+
+##### 结合 `Rc` 和 `RefCell`
+
+`RefCell<T>` 的一个常见用法是与 `Rc<T>` 结合。回忆一下 `Rc<T>` 允许对相同数据有多个所有者，不过只能提供数据的不可变访问。如果有一个储存了 `RefCell<T>` 的 `Rc<T>` 的话，就可以得到有多个所有者并且可以修改的值了！
+
+例如，回忆cons list 的例子中使用 `Rc<T>` 使得多个列表共享另一个列表的所有权。因为 `Rc<T>` 只存放不可变值，所以一旦创建了这些列表值后就不能修改。让我们加入 `RefCell<T>` 来获得修改列表中值的能力。下面展示了通过在 `Cons` 定义中使用 `RefCell<T>`，我们就允许修改所有列表中的值了：
+
+```rust
+#[derive(Debug)]
+enum List {
+    Cons(Rc<RefCell<i32>>, Rc<List>),
+    Nil,
+}
+
+use crate::List::{Cons, Nil};
+use std::cell::RefCell;
+use std::rc::Rc;
+
+fn main() {
+    let value = Rc::new(RefCell::new(5));
+
+    let a = Rc::new(Cons(Rc::clone(&value), Rc::new(Nil)));
+
+    let b = Cons(Rc::new(RefCell::new(3)), Rc::clone(&a));
+    let c = Cons(Rc::new(RefCell::new(4)), Rc::clone(&a));
+
+    *value.borrow_mut() += 10;
+
+    println!("a after = {:?}", a);
+    println!("b after = {:?}", b);
+    println!("c after = {:?}", c);
+}
+```
+
+当我们打印出 `a`、`b` 和 `c` 时，可以看到它们都拥有修改后的值 15 而不是 5：
+
+```console
+$ cargo run
+   Compiling cons-list v0.1.0 (file:///projects/cons-list)
+    Finished dev [unoptimized + debuginfo] target(s) in 0.63s
+     Running `target/debug/cons-list`
+a after = Cons(RefCell { value: 15 }, Nil)
+b after = Cons(RefCell { value: 3 }, Cons(RefCell { value: 15 }, Nil))
+c after = Cons(RefCell { value: 4 }, Cons(RefCell { value: 15 }, Nil))
+```
+
+##### 引用循环与内存泄漏
+
+Rust 的内存安全性保证使其难以意外地制造永远也不会被清理的内存（被称为 **内存泄漏**（*memory leak*）），但并不是不可能。Rust 并不保证完全防止内存泄漏，这意味着内存泄漏在 Rust 中被认为是内存安全的。这一点可以通过 `Rc<T>` 和 `RefCell<T>` 看出：创建引用循环的可能性是存在的。这会造成内存泄漏，因为每一项的引用计数永远也到不了 0，持有的数据也就永远不会被释放。
+
+让我们看看引用循环是如何发生的以及如何避免它。以示例 15-25 中的 `List` 枚举和 `tail` 方法的定义开始：
+
+文件名：src/main.rs
+
+```rust
+use crate::List::{Cons, Nil};
+use std::cell::RefCell;
+use std::rc::Rc;
+
+#[derive(Debug)]
+enum List {
+    Cons(i32, RefCell<Rc<List>>),
+    Nil,
+}
+
+impl List {
+    fn tail(&self) -> Option<&RefCell<Rc<List>>> {
+        match self {
+            Cons(_, item) => Some(item),
+            Nil => None,
+        }
+    }
+}
+
+fn main() {}
+```
+
+示例 15-25: 一个存放 `RefCell` 的 cons list 定义，这样可以修改 `Cons` 成员所引用的数据
+
+这里采用了示例 15-5 中 `List` 定义的另一种变体。现在 `Cons` 成员的第二个元素是 `RefCell<Rc<List>>`，这意味着不同于像示例 15-24 那样能够修改 `i32` 的值，我们希望能够修改 `Cons` 成员所指向的 `List`。这里还增加了一个 `tail` 方法来方便我们在有 `Cons` 成员的时候访问其第二项。
+
+在示例 15-26 中增加了一个 `main` 函数，其使用了示例 15-25 中的定义。这些代码在 `a` 中创建了一个列表，一个指向 `a` 中列表的 `b` 列表，接着修改 `a` 中的列表指向 `b` 中的列表，这会创建一个引用循环。在这个过程的多个位置有 `println!` 语句展示引用计数。
+
+```rust
+fn main() {
+    let a = Rc::new(Cons(5, RefCell::new(Rc::new(Nil))));
+
+    println!("a initial rc count = {}", Rc::strong_count(&a));
+    println!("a next item = {:?}", a.tail());
+
+    let b = Rc::new(Cons(10, RefCell::new(Rc::clone(&a))));
+
+    println!("a rc count after b creation = {}", Rc::strong_count(&a));
+    println!("b initial rc count = {}", Rc::strong_count(&b));
+    println!("b next item = {:?}", b.tail());
+
+    if let Some(link) = a.tail() {
+        *link.borrow_mut() = Rc::clone(&b);
+    }
+
+    println!("b rc count after changing a = {}", Rc::strong_count(&b));
+    println!("a rc count after changing a = {}", Rc::strong_count(&a));
+
+    // Uncomment the next line to see that we have a cycle;
+    // it will overflow the stack
+    // println!("a next item = {:?}", a.tail());
+}
+```
+
+可以看到将列表 `a` 修改为指向 `b` 之后， `a` 和 `b` 中的 `Rc<List>` 实例的引用计数都是 2。在 `main` 的结尾，Rust 丢弃 `b`，这会使 `b` `Rc<List>` 实例的引用计数从 2 减为 1。然而，`b` `Rc<List>` 不能被回收，因为其引用计数是 1 而不是 0。接下来 Rust 会丢弃 `a` 将 `a` `Rc<List>` 实例的引用计数从 2 减为 1。这个实例也不能被回收，因为 `b` `Rc<List>` 实例依然引用它，所以其引用计数是 1。这些列表的内存将永远保持未被回收的状态。为了更形象的展示，我们创建了一个如图所示的引用循环：
+
+<img src="https://kaisery.github.io/trpl-zh-cn/img/trpl15-04.svg" alt="Reference cycle of lists" style="zoom:50%;" />
+
+##### 避免引用循环：将 `Rc<T>` 变为 `Weak<T>`
+
+到目前为止，我们已经展示了调用 Rc::clone 会增加`Rc<T>` 实例的 strong_count，和只在其 strong_count 为 0 时才会被清理的 `Rc<T>` 实例。你也可以通过调用 Rc::downgrade 并传递 `Rc<T>` 实例的引用来创建其值的 弱引用（weak reference）。强引用代表如何共享 `Rc<T>` 实例的所有权。弱引用并不属于所有权关系，当 `Rc<T> `实例被清理时其计数没有影响。它们不会造成引用循环，因为任何涉及弱引用的循环会在其相关的值的强引用计数为 0 时被打断。
+
+调用 Rc::downgrade 时会得到 `Weak<T>` 类型的智能指针。不同于将 `Rc<T>` 实例的 strong_count 加 1，调用 Rc::downgrade 会将 weak_count 加 1。`Rc<T>`类型使用 weak_count 来记录其存在多少个 `Weak<T>` 引用，类似于 strong_count。其区别在于 weak_count 无需计数为 0 就能使 `Rc<T>` 实例被清理。
+
+因为 `Weak<T>` 引用的值可能已经被丢弃了，为了使用 `Weak<T>` 所指向的值，我们必须确保其值仍然有效。为此可以调用 `Weak<T>` 实例的 `upgrade` 方法，这会返回 `Option<Rc<T>>`。如果 `Rc<T>` 值还未被丢弃，则结果是 `Some`；如果 `Rc<T>` 已被丢弃，则结果是 `None`。因为 `upgrade` 返回一个 `Option<Rc<T>>`，Rust 会确保处理 `Some` 和 `None` 的情况，所以它不会返回非法指针。
+
+下面的示例构建一个带有子节点的树。为了使子节点知道其父节点，需要在 `Node` 结构体定义中增加一个 `parent` 字段。问题是 `parent` 的类型应该是什么。我们知道其不能包含 `Rc<T>`，因为这样 `leaf.parent` 将会指向 `branch` 而 `branch.children` 会包含 `leaf` 的指针，这会形成引用循环，会造成其 `strong_count` 永远也不会为 0。
+
+现在换一种方式思考这个关系，父节点应该拥有其子节点：如果父节点被丢弃了，其子节点也应该被丢弃。然而子节点不应该拥有其父节点：如果丢弃子节点，其父节点应该依然存在。这正是弱引用的例子！
+
+所以 `parent` 使用 `Weak<T>` 类型而不是 `Rc<T>`，具体来说是 `RefCell<Weak<Node>>`。现在 `Node` 结构体定义看起来像这样：
+
+```rust
+use std::cell::RefCell;
+use std::rc::{Rc, Weak};
+
+#[derive(Debug)]
+struct Node {
+    value: i32,
+    parent: RefCell<Weak<Node>>,
+    children: RefCell<Vec<Rc<Node>>>,
+}
+```
+
+这样，一个节点就能够引用其父节点，但不拥有其父节点。在示例中，我们更新 `main` 来使用新定义以便 `leaf` 节点可以通过 `branch` 引用其父节点：
+
+```rust
+fn main() {
+    let leaf = Rc::new(Node {
+        value: 3,
+        parent: RefCell::new(Weak::new()),
+        children: RefCell::new(vec![]),
+    });
+
+    println!("leaf parent = {:?}", leaf.parent.borrow().upgrade());
+
+    let branch = Rc::new(Node {
+        value: 5,
+        parent: RefCell::new(Weak::new()),
+        children: RefCell::new(vec![Rc::clone(&leaf)]),
+    });
+
+    *leaf.parent.borrow_mut() = Rc::downgrade(&branch);
+
+    println!("leaf parent = {:?}", leaf.parent.borrow().upgrade());
+}
+```
+
+### 闭包和迭代器
+
+#### 闭包
+
+Rust 的 **闭包**（*closures*）是可以保存在一个变量中或作为参数传递给其他函数的匿名函数。可以在一个地方创建闭包，然后在不同的上下文中执行闭包运算。不同于函数，闭包允许捕获被定义时所在作用域中的值。我们将展示闭包的这些功能如何复用代码和自定义行为。
+
+```rust
+fn  add_one_v1   (x: u32) -> u32 { x + 1 }
+let add_one_v2 = |x: u32| -> u32 { x + 1 };
+let add_one_v3 = |x|             { x + 1 };
+let add_one_v4 = |x|               x + 1  ;
+```
+
+编译器会为闭包定义中的每个参数和返回值推断一个具体类型。注意下面这个定义没有增加任何类型注解，所以我们可以用任意类型来调用这个闭包。但是如果尝试调用闭包两次，第一次使用 `String` 类型作为参数而第二次使用 `u32`，则会得到一个错误：
+
+```rust
+    let example_closure = |x| x;
+
+    let s = example_closure(String::from("hello"));
+    let n = example_closure(5);
+```
+
+```console
+error[E0308]: mismatched types
+ --> src/main.rs:5:29
+  |
+5 |     let n = example_closure(5);
+  |             --------------- ^- help: try using a conversion method: `.to_string()`
+  |             |               |
+  |             |               expected struct `String`, found integer
+  |             arguments to this function are incorrect
+  |
+note: closure parameter defined here
+ --> src/main.rs:2:28
+  |
+2 |     let example_closure = |x| x;
+  |                            ^
+```
+
+第一次使用 `String` 值调用 `example_closure` 时，编译器推断这个闭包中 `x` 的类型以及返回值的类型是 `String`。接着这些类型被锁定进闭包 `example_closure` 中，如果尝试对同一闭包使用不同类型则就会得到类型错误。
+
+#### 捕获引用
+
+闭包可以通过三种方式捕获其环境，它们直接对应到函数获取参数的三种方式：不可变借用，可变借用和获取所有权。闭包会根据函数体中如何使用被捕获的值决定用哪种方式捕获。
+
+下面定义了一个捕获名为 `list` 的 vector 的不可变引用的闭包，因为只需不可变引用就能打印其值：
+
+```rust
+fn main() {
+    let list = vec![1, 2, 3];
+    println!("Before defining closure: {:?}", list);
+
+    let only_borrows = || println!("From closure: {:?}", list);
+
+    println!("Before calling closure: {:?}", list);
+    only_borrows();
+    println!("After calling closure: {:?}", list);
+}
+```
+
+这个示例也展示了变量可以绑定一个闭包定义，并且之后可以使用变量名和括号来调用闭包，就像变量名是函数名一样。
+
+因为同时可以有多个 `list` 的不可变引用，所以在闭包定义之前，闭包定义之后调用之前，闭包调用之后代码仍然可以访问 `list`。代码可以编译、运行并打印：
+
+```console
+$ cargo run
+   Compiling closure-example v0.1.0 (file:///projects/closure-example)
+    Finished dev [unoptimized + debuginfo] target(s) in 0.43s
+     Running `target/debug/closure-example`
+Before defining closure: [1, 2, 3]
+Before calling closure: [1, 2, 3]
+From closure: [1, 2, 3]
+After calling closure: [1, 2, 3]
+```
+
+接下来，我们修改闭包体让它向 `list` vector 增加一个元素。闭包现在捕获一个可变引用：
+
+```rust
+fn main() {
+    let mut list = vec![1, 2, 3];
+    println!("Before defining closure: {:?}", list);
+
+    let mut borrows_mutably = || list.push(7);
+    
+    // println!("After defining closure: {:?}", list); immutable borrow occurs here
+    
+    borrows_mutably();
+    println!("After calling closure: {:?}", list);
+}
+```
+
+注意在 `borrows_mutably` 闭包的定义和调用之间不再有 `println!`，当 `borrows_mutably` 定义时，它捕获了 `list` 的可变引用。闭包在被调用后就不再被使用，这时可变借用结束。因为当可变借用存在时不允许有其它的借用，所以在闭包定义和调用之间不能有不可变引用来进行打印。
+
+#### 移动所有权
+
+即使闭包体不严格需要所有权，如果希望强制闭包获取它用到的环境中值的所有权，可以在参数列表前使用 `move` 关键字。在将闭包传递到一个新的线程时这个技巧很有用，它可以移动数据所有权给新线程。现在我们先简单探讨用 `move` 关键字的闭包来生成新的线程，使用 `move` 来强制闭包为线程获取 `list` 的所有权：
+
+```rust
+use std::thread;
+
+fn main() {
+    let list = vec![1, 2, 3];
+    println!("Before defining closure: {:?}", list);
+
+    thread::spawn(move || println!("From thread: {:?}", list))
+        .join()
+        .unwrap();
+}
+```
+
+我们生成了新的线程，给这个线程一个闭包作为参数运行，闭包体打印出列表。尽管闭包体依然只需要不可变引用，我们还是在闭包定义前写上 `move` 关键字来指明 `list` 应当被移动到闭包中。新线程可能在主线程剩余部分执行完前执行完，或者也可能主线程先执行完。如果主线程维护了 `list` 的所有权但却在新线程之前结束并且丢弃了 `list`，则在线程中的不可变引用将失效。因此，编译器要求 `list` 被移动到在新线程中运行的闭包中，这样引用就是有效的。
+
+#### `Fn` trait
+
+闭包体可以做以下任何事：将一个捕获的值移出闭包，修改捕获的值，既不移动也不修改值，或者一开始就不从环境中捕获值。
+
+>将一个捕获的值移出闭包指的是将闭包捕获的值的所有权从闭包中移出，使其在闭包外部再次可用。
+
+闭包捕获和处理环境中的值的方式影响闭包实现的 trait。Trait 是函数和结构体指定它们能用的闭包的类型的方式。取决于闭包体如何处理值，闭包自动、渐进地实现一个、两个或三个 `Fn` trait：
+
+1. `FnOnce` 适用于能被调用一次的闭包，所有闭包都至少实现了这个 trait，因为所有闭包都能被调用。一个会将捕获的值移出闭包体的闭包只实现 `FnOnce` trait，这是因为它只能被调用一次。
+2. `FnMut` 适用于不会将捕获的值移出闭包体的闭包，但它可能会修改被捕获的值。这类闭包可以被调用多次。
+3. `Fn` 适用于既不将被捕获的值移出闭包体也不修改被捕获的值的闭包，当然也包括不从环境中捕获值的闭包。这类闭包可以被调用多次而不改变它们的环境，这在会多次并发调用闭包的场景中十分重要。
+4. `FnOnce` -> `FnMut` -> `Fn`有渐进的继承关系，例如实现`Fn`时，`FnOnce`和`FnMut`必须实现。
+
+让我们来看看在 `Option<T>` 上的 `unwrap_or_else` 方法的定义：
+
+```rust
+impl<T> Option<T> {
+    pub fn unwrap_or_else<F>(self, f: F) -> T
+    where
+        F: FnOnce() -> T
+    {
+        match self {
+            Some(x) => x,
+            None => f(),
+        }
+    }
+}
+```
+
+泛型 `F` 的 trait bound 是 `FnOnce() -> T`，这意味着 `F` 必须能够被调用一次，没有参数并返回一个 `T`。在 trait bound 中使用 `FnOnce` 表示 `unwrap_or_else` 将最多调用 `f` 一次。由于所有的闭包都实现了 `FnOnce`，`unwrap_or_else` 能接收绝大多数不同类型的闭包，十分灵活。
+
+> 注意：函数也可以实现所有的三种 `Fn` traits。如果我们要做的事情不需要从环境中捕获值，则可以在需要某种实现了 `Fn` trait 的东西时使用函数而不是闭包。举个例子，可以在 `Option<Vec<T>>` 的值上调用 `unwrap_or_else(Vec::new)` 以便在值为 `None` 时获取一个新的空的 vector。
+
+现在让我们来看定义在 slice 上的标准库方法 `sort_by_key`，看看它与 `unwrap_or_else` 的区别以及为什么 `sort_by_key` 使用 `FnMut` 而不是 `FnOnce` trait bound。这个闭包以一个 slice 中当前被考虑的元素的引用作为参数，返回一个可以用来排序的 `K` 类型的值。当你想按照 slice 中元素的某个属性来进行排序时这个函数很有用。我们使用 `sort_by_key` 按 `Rectangle` 的 `width` 属性对它们从低到高排序：
+
+```rust
+#[derive(Debug)]
+struct Rectangle {
+    width: u32,
+    height: u32,
+}
+
+fn main() {
+    let mut list = [
+        Rectangle { width: 10, height: 1 },
+        Rectangle { width: 3, height: 5 },
+        Rectangle { width: 7, height: 12 },
+    ];
+
+    list.sort_by_key(|r| r.width);
+    println!("{:#?}", list);
+}
+```
+
+`sort_by_key` 被定义为接收一个 `FnMut` 闭包的原因是它会多次调用这个闭包：每个 slice 中的元素调用一次。闭包 `|r| r.width` 不捕获、修改或将任何东西移出它的环境，所以它满足 trait bound 的要求。
+
+作为对比，下面展示了一个只实现了 `FnOnce` trait 的闭包（因为它从环境中移出了一个值）的例子。编译器不允许我们在 `sort_by_key` 上使用这个闭包：
+
+```rust
+#[derive(Debug)]
+struct Rectangle {
+    width: u32,
+    height: u32,
+}
+
+fn main() {
+    let mut list = [
+        Rectangle { width: 10, height: 1 },
+        Rectangle { width: 3, height: 5 },
+        Rectangle { width: 7, height: 12 },
+    ];
+
+    let mut sort_operations = vec![];
+    let value = String::from("by key called");
+
+    list.sort_by_key(|r| {
+        sort_operations.push(value);
+        r.width
+    });
+    println!("{:#?}", list);
+}
+```
+
+报错指向了闭包体中将 `value` 移出环境的那一行。要修复这里，我们需要改变闭包体让它不将值移出环境。在环境中保持一个计数器并在闭包体中增加它的值是计算 `sort_by_key` 被调用次数的一个更简单直接的方法。下面的闭包可以在 `sort_by_key` 中使用，因为它只捕获了 `num_sort_operations` 计数器的可变引用，这就可以被调用多次。
+
+```rust
+#[derive(Debug)]
+struct Rectangle {
+    width: u32,
+    height: u32,
+}
+
+fn main() {
+    let mut list = [
+        Rectangle { width: 10, height: 1 },
+        Rectangle { width: 3, height: 5 },
+        Rectangle { width: 7, height: 12 },
+    ];
+
+    let mut num_sort_operations = 0;
+    list.sort_by_key(|r| {
+        num_sort_operations += 1;
+        r.width
+    });
+    println!("{:#?}, sorted in {num_sort_operations} operations", list);
+}
+```
+
+
+
+### 并发
+
+#### 线程
+
+Rust 标准库使用 *1:1* 线程实现，这代表程序的每一个语言级线程使用一个系统线程。
+
+##### 使用 `spawn` 创建新线程
+
+为了创建一个新线程，需要调用 `thread::spawn` 函数并传递一个闭包（第十三章学习了闭包），并在其中包含希望在新线程运行的代码。下面的例子在主线程打印了一些文本而另一些文本则由新线程打印：
+
+```rust
+use std::thread;
+use std::time::Duration;
+
+fn main() {
+    thread::spawn(|| {
+        for i in 1..10 {
+            println!("hi number {} from the spawned thread!", i);
+            thread::sleep(Duration::from_millis(1));
+        }
+    });
+
+    for i in 1..5 {
+        println!("hi number {} from the main thread!", i);
+        thread::sleep(Duration::from_millis(1));
+    }
+}
+```
+
+注意当 Rust 程序的主线程结束时，新线程也会结束，而不管其是否执行完毕。这个程序的输出可能每次都略有不同，不过它大体上看起来像这样：
+
+```text
+hi number 1 from the main thread!
+hi number 1 from the spawned thread!
+hi number 2 from the main thread!
+hi number 2 from the spawned thread!
+hi number 3 from the main thread!
+hi number 3 from the spawned thread!
+hi number 4 from the main thread!
+hi number 4 from the spawned thread!
+hi number 5 from the spawned thread!
+```
+
+#### 使用 `join` 等待所有线程结束
